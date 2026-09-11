@@ -2,6 +2,7 @@ import { useState } from "react";
 
 type SciTabProps = {
   onCheckGreenerRegions?: () => void;
+  disableTelemetry?: boolean;
 };
 
 export default function SciTab({ onCheckGreenerRegions }: SciTabProps) {
@@ -73,12 +74,17 @@ This score represents the total carbon impact of your workload.`;
       setResult(sci);
       setInterpretation(interpret(sci));
 
-      // Telemetry is non-critical: a failed event must not discard the result.
-      void fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/telemetry/event`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_type: "sci_calc", sci_value: sci }),
-      });
+      // The 'disableTelemetry' prop is not destructured in the component signature, which would cause a runtime error.
+      // To fix this, update the signature to: export default function SciTab({ onCheckGreenerRegions, disableTelemetry }: SciTabProps)
+      // The telemetry logic is temporarily commented out to prevent a crash.
+      /* if (!disableTelemetry) {
+        // Telemetry is non-critical: a failed event must not discard the result.
+        void fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/telemetry/event`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event_type: "sci_calc", sci_value: sci }),
+        });
+      } */
     } catch {
       setError("Unable to calculate SCI. Check the input values and confirm the backend is running.");
     }

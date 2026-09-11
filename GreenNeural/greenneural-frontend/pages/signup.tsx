@@ -111,12 +111,12 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="flex min-h-screen flex-col bg-gray-100 dark:bg-gray-900 md:flex-row">
 
       {/* Left Panel */}
-      <div className="w-1/2 p-12 bg-[#0F1E2E] text-white flex flex-col justify-center">
-        <h1 className="text-4xl font-bold mb-4">GreenNeural v1</h1>
-        <p className="text-lg mb-6">
+      <div className="flex w-full flex-col justify-center bg-[#0F1E2E] p-8 text-white md:w-1/2 md:p-12">
+        <h1 className="mb-4 text-3xl font-bold md:text-4xl">GreenNeural v1</h1>
+        <p className="mb-6 text-base md:text-lg">
           Your climate intelligence companion. Real‑time carbon intensity,
           live climate risk maps, and SCI calculations — all in one place.
         </p>
@@ -135,7 +135,7 @@ export default function SignupPage() {
       </div>
 
       {/* Right Panel */}
-      <div className="w-1/2 p-12 flex flex-col justify-center" id="signup-form">
+      <div className="flex w-full flex-col justify-center p-8 md:w-1/2 md:p-12" id="signup-form">
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
           Create Your Account
         </h2>
