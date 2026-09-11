@@ -1,0 +1,1776 @@
+diff --git a/components/CarbonTab.tsx b/components/CarbonTab.tsx
+index a551c74..c65c84a 100644
+--- a/components/CarbonTab.tsx
++++ b/components/CarbonTab.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useState } from "react";
+ import RegionSelector from "@/components/RegionSelector";
++import LiveBadge from "@/components/LiveBadge";
+ import { REGION_OPTIONS } from "@/config/regions";
+ 
+ type CarbonResponse = { region: string; provider: string; intensity_gco2_per_kwh: number | null };
+@@ -47,28 +48,31 @@ export default function CarbonTab() {
+   return (
+     <div className="space-y-4">
+       <h1 className="text-2xl font-semibold">Carbon Intensity</h1>
+-      <div className="flex gap-4">
+-        <div>
+-          <label>Provider</label>
++      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
++        <div className="min-w-0 flex-1 sm:flex-none">
++          <label className="mb-1 block text-sm text-gray-600 dark:text-gray-300">Provider</label>
+           <select value={provider} onChange={(event) => {
+             const nextProvider = event.target.value;
+             setProvider(nextProvider);
+             setRegion(getDefaultRegion(nextProvider));
+-          }} className="rounded-md bg-slate-800 px-2 py-1 text-white">
++          }} className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-white sm:w-auto">
+             {providers.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}
+           </select>
+         </div>
+-        <div>
+-          <label>Region</label>
++        <div className="min-w-0 flex-1">
++          <label className="mb-1 block text-sm text-gray-600 dark:text-gray-300">Region</label>
+           <RegionSelector provider={provider} region={region} setRegion={setRegion} />
+         </div>
+       </div>
+ 
+       {error && <p role="alert" className="rounded-md bg-red-950 p-3 text-red-200">{error}</p>}
+ 
+-      <div className="mt-4 grid grid-cols-2 gap-4">
+-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
+-          <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">Carbon Intensity</h3>
++      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
++        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-md transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
++          <div className="flex items-center justify-between">
++            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">Carbon Intensity</h3>
++            <LiveBadge />
++          </div>
+           {current?.intensity_gco2_per_kwh != null ? (
+             <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+               {current.intensity_gco2_per_kwh} gCO₂/kWh
+@@ -77,7 +81,7 @@ export default function CarbonTab() {
+             <p className="text-red-600 dark:text-red-400">Carbon intensity unavailable</p>
+           )}
+         </div>
+-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
++        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-4 shadow-md transition-shadow hover:shadow-lg dark:bg-emerald-500/10">
+           <h2 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">Cleanest region right now</h2>
+           {cleanest ? (
+             <p className="text-gray-900 dark:text-gray-100">{cleanest.provider.toUpperCase()} {cleanest.region}: <strong>{cleanest.intensity_gco2_per_kwh} gCO₂/kWh</strong></p>
+diff --git a/components/CitySearchBar.tsx b/components/CitySearchBar.tsx
+index 8f83565..d3ac41b 100644
+--- a/components/CitySearchBar.tsx
++++ b/components/CitySearchBar.tsx
+@@ -27,8 +27,15 @@ export default function CitySearchBar({ setSelectedCity }: CitySearchBarProps) {
+ 
+   return (
+     <div className="mb-4 flex gap-2">
+-      <input type="text" placeholder="Search a city..." value={query} onChange={(e) => setQuery(e.target.value)} className="w-full rounded border p-2 text-slate-900" />
+-      <button type="button" onClick={searchCity} className="rounded bg-green-600 px-4 py-2 text-white">Search</button>
++      <input
++        type="text"
++        placeholder="Search a city..."
++        value={query}
++        onChange={(e) => setQuery(e.target.value)}
++        onKeyDown={(e) => e.key === "Enter" && searchCity()}
++        className="w-full rounded border border-gray-300 bg-white p-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
++      />
++      <button type="button" onClick={searchCity} className="rounded bg-emerald-500 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-400">Search</button>
+     </div>
+   );
+ }
+diff --git a/components/ClimateRiskMap.tsx b/components/ClimateRiskMap.tsx
+index 5cce280..e3ebc95 100644
+--- a/components/ClimateRiskMap.tsx
++++ b/components/ClimateRiskMap.tsx
+@@ -73,5 +73,5 @@ export default function ClimateRiskMap({ riskType, selectedCity }: ClimateRiskMa
+       .addTo(map);
+   }, [selectedCity]);
+ 
+-  return <div ref={mapContainer} className="h-[600px] w-full rounded-lg shadow-lg" />;
++  return <div ref={mapContainer} className="h-[60vh] min-h-[320px] w-full rounded-lg shadow-lg sm:h-[70vh] sm:max-h-[600px]" />;
+ }
+diff --git a/components/CollapsibleSidebar.tsx b/components/CollapsibleSidebar.tsx
+index 04d4908..e358118 100644
+--- a/components/CollapsibleSidebar.tsx
++++ b/components/CollapsibleSidebar.tsx
+@@ -1,21 +1,33 @@
+ import { useEffect, useState } from "react";
+ import Link from "next/link";
+ import { useRouter } from "next/router";
++import { LogOut, Menu, Moon, Sun, X } from "lucide-react";
+ import { supabase } from "../lib/supabaseClient";
++import { useTheme } from "@/lib/theme";
++
++const LINKS = [
++  { href: "/dashboard", label: "Dashboard" },
++  { href: "/dashboard/carbon", label: "Carbon Intensity" },
++  { href: "/dashboard/risk", label: "Climate Risk Map" },
++  { href: "/dashboard/sci", label: "SCI Calculator" },
++  { href: "/profile", label: "My Profile" },
++];
+ 
+ export default function CollapsibleSidebar() {
+-  const [open, setOpen] = useState(true);
+-  const [darkMode, setDarkMode] = useState(false);
++  // Closed by default: on phones this is an overlay drawer, so it should
++  // never cover the page on first paint. md and up always show it (see the
++  // md:translate-x-0 override below) regardless of this state.
++  const [open, setOpen] = useState(false);
++  const { theme, toggleTheme } = useTheme();
+   const router = useRouter();
+ 
++  // Close the drawer automatically when navigating to a new route, so a
++  // link tap doesn't leave the overlay open behind the new page.
+   useEffect(() => {
+-    setDarkMode(document.documentElement.classList.contains("dark"));
+-  }, []);
+-
+-  const toggleTheme = () => {
+-    document.documentElement.classList.toggle("dark");
+-    setDarkMode(document.documentElement.classList.contains("dark"));
+-  };
++    const handleRouteChange = () => setOpen(false);
++    router.events.on("routeChangeStart", handleRouteChange);
++    return () => router.events.off("routeChangeStart", handleRouteChange);
++  }, [router.events]);
+ 
+   const logout = async () => {
+     await supabase.auth.signOut();
+@@ -23,62 +35,69 @@ export default function CollapsibleSidebar() {
+   };
+ 
+   return (
+-    <div className="relative">
+-      {/* Toggle Button (always visible on mobile) */}
++    <>
++      {/* Hamburger / close toggle, mobile only */}
+       <button
+         type="button"
+-        onClick={() => setOpen(!open)}
+-        className="fixed left-4 top-4 z-50 rounded-lg bg-[#0F1E2E] px-3 py-2 text-white shadow-lg dark:bg-[#0A1624] md:hidden"
++        onClick={() => setOpen((current) => !current)}
++        aria-expanded={open}
++        aria-controls="dashboard-sidebar"
++        aria-label={open ? "Close navigation menu" : "Open navigation menu"}
++        className="fixed left-4 top-4 z-50 rounded-lg bg-[#0F1E2E] p-2 text-white shadow-lg dark:bg-[#0A1624] md:hidden"
+       >
+-        {open ? "Close" : "Menu"}
++        {open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+       </button>
+ 
+-      {/* Sidebar */}
++      {/* Backdrop, mobile only — tapping it dismisses the drawer */}
++      {open && (
++        <div
++          className="fixed inset-0 z-40 bg-black/40 md:hidden"
++          onClick={() => setOpen(false)}
++          aria-hidden="true"
++        />
++      )}
++
+       <aside
+-        className={`fixed left-0 top-0 h-full bg-[#0F1E2E] p-6 text-white shadow-xl transition-all duration-300 dark:bg-[#0A1624]
+-          ${open ? "w-64" : "w-0 overflow-hidden"}
+-          md:static md:block md:h-auto md:w-64`}
++        id="dashboard-sidebar"
++        className={`fixed left-0 top-0 z-50 h-full w-64 shrink-0 transform bg-[#0F1E2E] p-6 pt-16 text-white shadow-xl transition-transform duration-300 dark:bg-[#0A1624]
++          ${open ? "translate-x-0" : "-translate-x-full"}
++          md:static md:h-auto md:translate-x-0 md:pt-6`}
+       >
+-        {open && (
+-          <nav className="space-y-4 text-sm">
+-            <Link href="/dashboard" className="block hover:text-green-300">
+-              Dashboard
+-            </Link>
+-
+-            <Link href="/dashboard/carbon" className="block hover:text-green-300">
+-              Carbon Intensity
+-            </Link>
+-
+-            <Link href="/dashboard/risk" className="block hover:text-green-300">
+-              Climate Risk Map
+-            </Link>
+-
+-            <Link href="/dashboard/sci" className="block hover:text-green-300">
+-              SCI Calculator
+-            </Link>
+-
+-            <Link href="/profile" className="block hover:text-green-300">
+-              My Profile
+-            </Link>
++        <nav className="space-y-4 text-sm">
++          {LINKS.map(({ href, label }) => {
++            const active = router.pathname === href;
++            return (
++              <Link
++                key={href}
++                href={href}
++                className={`block rounded-md px-2 py-1.5 transition-colors hover:text-emerald-300 ${
++                  active ? "bg-white/10 font-medium text-emerald-300" : ""
++                }`}
++              >
++                {label}
++              </Link>
++            );
++          })}
+ 
+-            <button
+-              type="button"
+-              onClick={toggleTheme}
+-              className="block w-full rounded bg-gray-700 px-3 py-2 text-left text-white hover:bg-gray-600"
+-            >
+-              {darkMode ? "Light Mode" : "Dark Mode"}
+-            </button>
++          <button
++            type="button"
++            onClick={toggleTheme}
++            className="flex w-full items-center gap-2 rounded bg-gray-700 px-3 py-2 text-left text-white hover:bg-gray-600"
++          >
++            {theme === "dark" ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
++            {theme === "dark" ? "Light Mode" : "Dark Mode"}
++          </button>
+ 
+-            <button
+-              type="button"
+-              onClick={logout}
+-              className="block w-full pt-4 text-left text-red-400 hover:text-red-300"
+-            >
+-              Logout
+-            </button>
+-          </nav>
+-        )}
++          <button
++            type="button"
++            onClick={logout}
++            className="flex w-full items-center gap-2 pt-4 text-left text-red-400 hover:text-red-300"
++          >
++            <LogOut size={16} aria-hidden="true" />
++            Logout
++          </button>
++        </nav>
+       </aside>
+-    </div>
++    </>
+   );
+ }
+diff --git a/components/DashboardLayout.tsx b/components/DashboardLayout.tsx
+index 548855a..fd2e15a 100644
+--- a/components/DashboardLayout.tsx
++++ b/components/DashboardLayout.tsx
+@@ -9,7 +9,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
+       <CollapsibleSidebar />
+ 
+       {/* Main Content */}
+-      <main className="flex-1 p-6 transition-all duration-300 md:ml-64">
++      {/* No ml-64 here: on md+ the sidebar is a static flex item (not fixed),
++          so flex-1 alone gives this the remaining width. Adding a left margin
++          on top of that double-counts the sidebar's width and leaves a gap. */}
++      <main className="min-w-0 flex-1 p-4 transition-all duration-300 sm:p-6">
+         {children}
+         <Footer />
+       </main>
+diff --git a/components/Footer.tsx b/components/Footer.tsx
+index 1e7fb84..9ea6152 100644
+--- a/components/Footer.tsx
++++ b/components/Footer.tsx
+@@ -1,3 +1,5 @@
++import Link from "next/link";
++
+ export default function Footer() {
+   return (
+     <footer className="mt-12 py-6 text-center text-gray-600 dark:text-gray-400">
+@@ -5,9 +7,9 @@ export default function Footer() {
+       <p>Your sustainability data is protected with industry‑standard security.</p>
+       <p>We never sell or share your data.</p>
+       <p className="mt-4">
+-        <a href="/about" className="text-green-600 dark:text-green-400">
++        <Link href="/about" className="text-emerald-500 dark:text-emerald-400">
+           About GreenNeural
+-        </a>
++        </Link>
+       </p>
+     </footer>
+   );
+diff --git a/components/RegionSelector.tsx b/components/RegionSelector.tsx
+index 52af9b9..038a99d 100644
+--- a/components/RegionSelector.tsx
++++ b/components/RegionSelector.tsx
+@@ -10,14 +10,14 @@ export default function RegionSelector({ provider, region, setRegion }: Props) {
+   const providerRegions = REGION_OPTIONS[provider];
+ 
+   if (!providerRegions) {
+-    return <p>Select a cloud provider first.</p>;
++    return <p className="text-gray-600 dark:text-gray-300">Select a cloud provider first.</p>;
+   }
+ 
+   return (
+     <select
+       value={region}
+       onChange={(e) => setRegion(e.target.value)}
+-      className="border border-green-600 p-2 rounded w-full bg-green-50 text-green-900 focus:ring-2 focus:ring-green-600"
++      className="w-full rounded border border-emerald-500 bg-emerald-50 p-2 text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-100"
+     >
+       {Object.entries(providerRegions.groups).map(([groupLabel, regions]) => (
+         <optgroup key={groupLabel} label={groupLabel}>
+diff --git a/components/SciTab.tsx b/components/SciTab.tsx
+index 766f940..f571d2e 100644
+--- a/components/SciTab.tsx
++++ b/components/SciTab.tsx
+@@ -2,9 +2,10 @@ import { useState } from "react";
+ 
+ type SciTabProps = {
+   onCheckGreenerRegions?: () => void;
++  disableTelemetry?: boolean;
+ };
+ 
+-export default function SciTab({ onCheckGreenerRegions }: SciTabProps) {
++export default function SciTab({ onCheckGreenerRegions, disableTelemetry = false }: SciTabProps) {
+   const [energy, setEnergy] = useState("");
+   const [intensity, setIntensity] = useState("");
+   const [embodied, setEmbodied] = useState("");
+@@ -74,11 +75,14 @@ This score represents the total carbon impact of your workload.`;
+       setInterpretation(interpret(sci));
+ 
+       // Telemetry is non-critical: a failed event must not discard the result.
+-      void fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/telemetry/event`, {
+-        method: "POST",
+-        headers: { "Content-Type": "application/json" },
+-        body: JSON.stringify({ event_type: "sci_calc", sci_value: sci }),
+-      });
++      // Demo mode opts out entirely so anonymous visitors don't skew real usage stats.
++      if (!disableTelemetry) {
++        void fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/telemetry/event`, {
++          method: "POST",
++          headers: { "Content-Type": "application/json" },
++          body: JSON.stringify({ event_type: "sci_calc", sci_value: sci }),
++        });
++      }
+     } catch {
+       setError("Unable to calculate SCI. Check the input values and confirm the backend is running.");
+     }
+@@ -86,62 +90,62 @@ This score represents the total carbon impact of your workload.`;
+ 
+   return (
+     <div className="space-y-4">
+-      <h1 className="text-2xl font-semibold">SCI Calculator</h1>
+-      <details className="rounded-lg bg-gray-100 p-4 text-gray-700">
+-        <summary className="cursor-pointer text-lg font-semibold text-gray-900">How SCI is calculated</summary>
++      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">SCI Calculator</h1>
++      <details className="rounded-lg bg-gray-100 p-4 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
++        <summary className="cursor-pointer text-lg font-semibold text-gray-900 dark:text-gray-100">How SCI is calculated</summary>
+         <p className="mt-2">The Sustainable Compute Intensity (SCI) score measures the carbon impact of running a workload. It combines the energy used, the carbon intensity of the region, and the model’s resource footprint.</p>
+-        <h3 className="mt-4 font-semibold">SCI Formula</h3>
++        <h3 className="mt-4 font-semibold text-gray-900 dark:text-gray-100">SCI Formula</h3>
+         <p className="mt-1">SCI = (E × I) + MR</p>
+-        <h3 className="mt-4 font-semibold">Where:</h3>
++        <h3 className="mt-4 font-semibold text-gray-900 dark:text-gray-100">Where:</h3>
+         <ul className="ml-6 list-disc">
+           <li><strong>E</strong> = Energy consumed by the workload (kWh)</li>
+           <li><strong>I</strong> = Carbon intensity of the region (gCO₂/kWh)</li>
+           <li><strong>MR</strong> = Model resource overhead (gCO₂)</li>
+         </ul>
+-        <h3 className="mt-4 font-semibold">Example</h3>
++        <h3 className="mt-4 font-semibold text-gray-900 dark:text-gray-100">Example</h3>
+         <p className="mt-1">If your workload uses 10 kWh in a region with 200 gCO₂/kWh carbon intensity, and your model overhead is 50 gCO₂:</p>
+         <p className="mt-1">SCI = (10 × 200) + 50 = 2050 gCO₂</p>
+       </details>
+       <form onSubmit={handleSubmit} className="space-y-3 max-w-md">
+         <div>
+-          <label>Energy (kWh)</label>
++          <label className="mb-1 block text-sm text-gray-600 dark:text-gray-300">Energy (kWh)</label>
+           <input
+             type="number"
+             value={energy}
+             onChange={(e) => setEnergy(e.target.value)}
+-            className="w-full bg-slate-800 text-white px-2 py-1 rounded-md"
++            className="w-full rounded-md border border-slate-700 bg-slate-800 px-2 py-1.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+           />
+         </div>
+         <div>
+-          <label>Intensity (gCO₂/kWh)</label>
++          <label className="mb-1 block text-sm text-gray-600 dark:text-gray-300">Intensity (gCO₂/kWh)</label>
+           <input
+             type="number"
+             value={intensity}
+             onChange={(e) => setIntensity(e.target.value)}
+-            className="w-full bg-slate-800 text-white px-2 py-1 rounded-md"
++            className="w-full rounded-md border border-slate-700 bg-slate-800 px-2 py-1.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+           />
+         </div>
+         <div>
+-          <label>Embodied emissions (gCO₂e)</label>
++          <label className="mb-1 block text-sm text-gray-600 dark:text-gray-300">Embodied emissions (gCO₂e)</label>
+           <input
+             type="number"
+             value={embodied}
+             onChange={(e) => setEmbodied(e.target.value)}
+-            className="w-full bg-slate-800 text-white px-2 py-1 rounded-md"
++            className="w-full rounded-md border border-slate-700 bg-slate-800 px-2 py-1.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+           />
+         </div>
+         <div>
+-          <label>Functional unit</label>
++          <label className="mb-1 block text-sm text-gray-600 dark:text-gray-300">Functional unit</label>
+           <input
+             type="text"
+             value={unit}
+             onChange={(e) => setUnit(e.target.value)}
+-            className="w-full bg-slate-800 text-white px-2 py-1 rounded-md"
++            className="w-full rounded-md border border-slate-700 bg-slate-800 px-2 py-1.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+           />
+         </div>
+         <button
+           type="submit"
+-          className="mt-2 px-4 py-2 rounded-md bg-emerald-500 text-slate-950 font-semibold"
++          className="mt-2 rounded-md bg-emerald-500 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-400"
+         >
+           Calculate SCI
+         </button>
+@@ -154,24 +158,24 @@ This score represents the total carbon impact of your workload.`;
+       )}
+ 
+       {typeof result === "number" && Number.isFinite(result) && (
+-        <div className="mt-4 bg-slate-900 p-4 rounded-md">
+-          <h2 className="font-semibold mb-2">Result</h2>
+-          <p>
++        <div className="mt-4 rounded-md bg-slate-900 p-4">
++          <h2 className="mb-2 font-semibold text-white">Result</h2>
++          <p className="text-gray-100">
+             SCI: <strong>{result.toFixed(2)}</strong> ({interpretation})
+           </p>
+-          <button type="button" onClick={downloadSCI} className="mt-4 rounded bg-green-600 px-4 py-2 text-white">
++          <button type="button" onClick={downloadSCI} className="mt-4 rounded bg-emerald-500 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-400">
+             Download SCI Result
+           </button>
+-          <section className="mt-4 rounded border border-green-200 bg-green-50 p-4 text-gray-700">
+-            <h3 className="font-semibold">SCI Interpretation</h3>
++          <section className="mt-4 rounded border border-emerald-800 bg-emerald-950/40 p-4 text-gray-100">
++            <h3 className="font-semibold text-white">SCI Interpretation</h3>
+             <p className="mt-2"><strong>0 – 500 gCO₂:</strong> Very low impact — highly efficient workload.</p>
+             <p className="mt-1"><strong>500 – 2000 gCO₂:</strong> Moderate impact — consider switching to a greener region.</p>
+             <p className="mt-1"><strong>2000+ gCO₂:</strong> High impact — significant carbon footprint.</p>
+           </section>
+-          <section className="mt-4 rounded border border-blue-200 bg-blue-50 p-4 text-gray-700">
+-            <h3 className="font-semibold">Want to reduce your SCI?</h3>
++          <section className="mt-4 rounded border border-sky-800 bg-sky-950/40 p-4 text-gray-100">
++            <h3 className="font-semibold text-white">Want to reduce your SCI?</h3>
+             <p className="mt-2">Try switching to a greener region or running your workload during low-carbon hours.</p>
+-            <button type="button" onClick={onCheckGreenerRegions} className="mt-2 rounded bg-blue-600 px-4 py-2 text-white">
++            <button type="button" onClick={onCheckGreenerRegions} className="mt-2 rounded bg-emerald-500 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-400">
+               Check Greener Regions
+             </button>
+           </section>
+diff --git a/next.config.ts b/next.config.ts
+index e9ffa30..8ce949c 100644
+--- a/next.config.ts
++++ b/next.config.ts
+@@ -2,6 +2,25 @@ import type { NextConfig } from "next";
+ 
+ const nextConfig: NextConfig = {
+   /* config options here */
++
++  // The rest of the app should stay un-embeddable (default browser behaviour),
++  // but /demo is built to be dropped into an iframe on partner sites like
++  // LaunchTry, so it needs an explicit opt-in instead of the platform default.
++  async headers() {
++    return [
++      {
++        // Omitting X-Frame-Options (rather than sending an invalid value)
++        // and relying on the standard CSP directive is what modern browsers
++        // actually honour for cross-site framing.
++        source: "/demo",
++        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *" }],
++      },
++      {
++        source: "/demo/:path*",
++        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *" }],
++      },
++    ];
++  },
+ };
+ 
+ export default nextConfig;
+diff --git a/pages/_app.tsx b/pages/_app.tsx
+index 2652a61..6fe5de9 100644
+--- a/pages/_app.tsx
++++ b/pages/_app.tsx
+@@ -1,7 +1,12 @@
+ import type { AppProps } from "next/app";
+ import "mapbox-gl/dist/mapbox-gl.css";
+ import "../styles/globals.css";
++import { ThemeProvider } from "../lib/theme";
+ 
+ export default function App({ Component, pageProps }: AppProps) {
+-  return <Component {...pageProps} />;
++  return (
++    <ThemeProvider>
++      <Component {...pageProps} />
++    </ThemeProvider>
++  );
+ }
+diff --git a/pages/about.tsx b/pages/about.tsx
+index cdd73d7..97081b0 100644
+--- a/pages/about.tsx
++++ b/pages/about.tsx
+@@ -1,47 +1,73 @@
++import Link from "next/link";
++import { Leaf } from "lucide-react";
++import ThemeToggle from "@/components/ThemeToggle";
++
+ export default function AboutPage() {
+   return (
+-    <div className="max-w-4xl mx-auto p-8 text-gray-900 dark:text-gray-100">
+-      <h1 className="text-4xl font-bold mb-6">About GreenNeural</h1>
++    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
++      <div className="eco-gradient-bg border-b border-gray-200 dark:border-gray-800">
++        <div className="mx-auto flex max-w-4xl items-center justify-between p-6">
++          <Link href="/" className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
++            <Leaf size={20} className="text-emerald-500" aria-hidden="true" />
++            <span className="font-semibold">GreenNeural</span>
++          </Link>
++          <ThemeToggle />
++        </div>
++        <div className="mx-auto max-w-4xl px-6 pb-10">
++          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">About GreenNeural</h1>
++        </div>
++      </div>
++
++      <div className="mx-auto max-w-4xl p-6 sm:p-8">
++        <section className="mb-10">
++          <h2 className="text-2xl font-semibold mb-3 text-gray-900 dark:text-gray-100">Our Mission</h2>
++          <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
++            GreenNeural empowers developers, engineers, and sustainability teams with
++            real-time climate intelligence. Our mission is to help organizations reduce
++            digital carbon emissions, choose greener cloud regions, and understand climate
++            risks affecting their workloads and infrastructure.
++          </p>
++        </section>
+ 
+-      <section className="mb-10">
+-        <h2 className="text-2xl font-semibold mb-3">Our Mission</h2>
+-        <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
+-          GreenNeural empowers developers, engineers, and sustainability teams with
+-          real-time climate intelligence. Our mission is to help organizations reduce
+-          digital carbon emissions, choose greener cloud regions, and understand climate
+-          risks affecting their workloads and infrastructure.
+-        </p>
+-      </section>
++        <section className="mb-10">
++          <h2 className="text-2xl font-semibold mb-3 text-gray-900 dark:text-gray-100">What GreenNeural Does</h2>
++          <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
++            GreenNeural provides live carbon intensity data for AWS, Azure, and GCP regions,
++            climate risk insights (heat, flood, air quality), SCI (Sustainability Compute
++            Index) calculations, and greener region recommendations. It helps teams make
++            environmentally responsible decisions without sacrificing performance.
++          </p>
++        </section>
+ 
+-      <section className="mb-10">
+-        <h2 className="text-2xl font-semibold mb-3">What GreenNeural Does</h2>
+-        <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
+-          GreenNeural provides live carbon intensity data for AWS, Azure, and GCP regions,
+-          climate risk insights (heat, flood, air quality), SCI (Sustainability Compute
+-          Index) calculations, and greener region recommendations. It helps teams make
+-          environmentally responsible decisions without sacrificing performance.
+-        </p>
+-      </section>
++        <section className="mb-10">
++          <h2 className="text-2xl font-semibold mb-3 text-gray-900 dark:text-gray-100">Why Climate Intelligence Matters</h2>
++          <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
++            Cloud workloads contribute significantly to global emissions. Choosing cleaner
++            regions, optimizing compute, and understanding climate risks can reduce carbon
++            footprint by up to 60%. Climate intelligence enables smarter, greener decisions
++            that benefit both the planet and your infrastructure.
++          </p>
++        </section>
+ 
+-      <section className="mb-10">
+-        <h2 className="text-2xl font-semibold mb-3">Why Climate Intelligence Matters</h2>
+-        <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
+-          Cloud workloads contribute significantly to global emissions. Choosing cleaner
+-          regions, optimizing compute, and understanding climate risks can reduce carbon
+-          footprint by up to 60%. Climate intelligence enables smarter, greener decisions
+-          that benefit both the planet and your infrastructure.
+-        </p>
+-      </section>
++        <section>
++          <h2 className="text-2xl font-semibold mb-3 text-gray-900 dark:text-gray-100">How Your Data Is Used</h2>
++          <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
++            GreenNeural only stores essential sustainability profile data such as preferred
++            cloud provider, region, and climate interest. We never sell or share your data.
++            All information is encrypted, protected with industry-standard security, and
++            used solely to improve your climate insights and recommendations.
++          </p>
++        </section>
+ 
+-      <section>
+-        <h2 className="text-2xl font-semibold mb-3">How Your Data Is Used</h2>
+-        <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
+-          GreenNeural only stores essential sustainability profile data such as preferred
+-          cloud provider, region, and climate interest. We never sell or share your data.
+-          All information is encrypted, protected with industry-standard security, and
+-          used solely to improve your climate insights and recommendations.
+-        </p>
+-      </section>
++        <div className="mt-12 flex flex-wrap gap-3 border-t border-gray-200 pt-8 dark:border-gray-800">
++          <Link href="/demo" className="rounded-lg bg-emerald-500 px-5 py-2.5 font-semibold text-slate-950 hover:bg-emerald-400">
++            Try the live demo
++          </Link>
++          <Link href="/signup" className="rounded-lg border border-gray-300 px-5 py-2.5 font-semibold text-gray-700 hover:border-emerald-500 hover:text-emerald-600 dark:border-gray-600 dark:text-gray-200 dark:hover:text-emerald-400">
++            Create a free account
++          </Link>
++        </div>
++      </div>
+     </div>
+   );
+ }
+diff --git a/pages/auth.tsx b/pages/auth.tsx
+index c1d46d1..f0ee027 100644
+--- a/pages/auth.tsx
++++ b/pages/auth.tsx
+@@ -2,24 +2,29 @@ import { supabase } from "../lib/supabaseClient";
+ import { useState, type FormEvent } from "react";
+ import Link from "next/link";
+ import { useRouter } from "next/router";
++import { Leaf } from "lucide-react";
++import ThemeToggle from "@/components/ThemeToggle";
+ 
+ export default function AuthPage() {
+   const router = useRouter();
+   const [email, setEmail] = useState("");
+   const [password, setPassword] = useState("");
+   const [errorMsg, setErrorMsg] = useState("");
++  const [submitting, setSubmitting] = useState(false);
+ 
+   async function signIn(e: FormEvent<HTMLFormElement>) {
+     e.preventDefault();
++    setErrorMsg("");
++    setSubmitting(true);
+ 
+-    const { data, error } = await supabase.auth.signInWithPassword({
++    const { error } = await supabase.auth.signInWithPassword({
+       email,
+       password,
+     });
+ 
+     if (error) {
+-      console.log("ERROR:", error);
+       setErrorMsg(error.message);
++      setSubmitting(false);
+       return;
+     }
+ 
+@@ -36,19 +41,28 @@ export default function AuthPage() {
+         .insert({ email, plan: "free", company_name: null });
+     }
+ 
+-    console.log("SIGNED IN:", data);
+     router.push("/dashboard");
+   }
+ 
+   return (
+-    <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+-      <form onSubmit={signIn} className="space-y-4 bg-slate-900 p-6 rounded-md w-80">
+-        <h1 className="text-xl font-semibold">Sign In</h1>
++    <main className="flex min-h-screen items-center justify-center bg-gray-100 p-4 dark:bg-gray-900">
++      <ThemeToggle className="fixed right-4 top-4" />
++
++      <form
++        onSubmit={signIn}
++        className="w-full max-w-sm space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800"
++      >
++        <Link href="/" className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
++          <Leaf size={20} className="text-emerald-500" aria-hidden="true" />
++          <span className="font-semibold">GreenNeural</span>
++        </Link>
++
++        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Sign in</h1>
+ 
+         <input
+           type="email"
+           placeholder="Email"
+-          className="w-full px-3 py-2 bg-slate-800 rounded-md"
++          className="w-full rounded-md bg-gray-100 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-gray-900 dark:text-gray-100"
+           value={email}
+           onChange={(e) => setEmail(e.target.value)}
+         />
+@@ -56,23 +70,24 @@ export default function AuthPage() {
+         <input
+           type="password"
+           placeholder="Password"
+-          className="w-full px-3 py-2 bg-slate-800 rounded-md"
++          className="w-full rounded-md bg-gray-100 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-gray-900 dark:text-gray-100"
+           value={password}
+           onChange={(e) => setPassword(e.target.value)}
+         />
+ 
+         {errorMsg && (
+-          <p className="text-red-400 text-sm">{errorMsg}</p>
++          <p role="alert" className="text-sm text-red-600 dark:text-red-400">{errorMsg}</p>
+         )}
+ 
+         <button
+           type="submit"
+-          className="w-full px-4 py-2 bg-emerald-500 text-slate-950 rounded-md font-semibold"
++          disabled={submitting}
++          className="w-full rounded-md bg-emerald-500 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+         >
+-          Sign In
++          {submitting ? "Signing in…" : "Sign in"}
+         </button>
+ 
+-        <Link href="/signup" className="block text-center text-blue-400 hover:text-blue-300">
++        <Link href="/signup" className="block text-center text-sm text-emerald-600 hover:underline dark:text-emerald-400">
+           Create an account
+         </Link>
+       </form>
+diff --git a/pages/dashboard/carbon.tsx b/pages/dashboard/carbon.tsx
+index 9c69ddb..2fba646 100644
+--- a/pages/dashboard/carbon.tsx
++++ b/pages/dashboard/carbon.tsx
+@@ -9,7 +9,7 @@ export default function CarbonPage() {
+     <DashboardLayout>
+       <>
+         <div className="flex justify-end mb-4">
+-          <Link href="/profile" className="text-gray-700 hover:text-green-600 font-medium">
++          <Link href="/profile" className="text-gray-700 hover:text-emerald-500 font-medium dark:text-gray-300 dark:hover:text-emerald-400">
+             My Profile
+           </Link>
+         </div>
+diff --git a/pages/dashboard/index.tsx b/pages/dashboard/index.tsx
+index fca554c..e96a86a 100644
+--- a/pages/dashboard/index.tsx
++++ b/pages/dashboard/index.tsx
+@@ -1,6 +1,7 @@
+ import { useEffect, useState } from "react";
+ import Link from "next/link";
+ import DashboardLayout from "../../components/DashboardLayout";
++import LiveBadge from "../../components/LiveBadge";
+ 
+ type Carbon = {
+   intensity: number | null;
+@@ -65,52 +66,61 @@ export default function DashboardHome() {
+     <DashboardLayout>
+       <div className="space-y-6">
+       <div className="flex justify-end mb-4">
+-        <Link href="/profile" className="text-gray-700 hover:text-green-600 font-medium">
++        <Link href="/profile" className="text-gray-700 hover:text-emerald-500 font-medium dark:text-gray-300 dark:hover:text-emerald-400">
+           My Profile
+         </Link>
+       </div>
+-      <h1 className="text-2xl font-semibold">GreenNeural Dashboard</h1>
+-      <p className="text-gray-600">Your sustainability insights at a glance.</p>
++      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">GreenNeural Dashboard</h1>
++      <p className="text-gray-600 dark:text-gray-300">Your sustainability insights at a glance.</p>
+       {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
+ 
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800">
+-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Carbon Intensity</h2>
++        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
++          <div className="flex items-center justify-between">
++            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Carbon Intensity</h2>
++            <LiveBadge />
++          </div>
+           {carbon ? (
+             <>
+               <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{carbonIntensity ?? "N/A"} gCO₂/kWh</p>
+               <p className="mt-1 text-gray-600 dark:text-gray-300">Region: {carbon.region}</p>
+-              <button type="button" className="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">Check Regions</button>
++              <Link href="/dashboard/carbon" className="mt-3 inline-block rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-400">Check Regions</Link>
+             </>
+           ) : <p>Loading...</p>}
+         </div>
+ 
+-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800">
+-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Climate Risk</h2>
++        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
++          <div className="flex items-center justify-between">
++            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Climate Risk</h2>
++            <LiveBadge />
++          </div>
+           {risk ? (
+             <>
+               <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">{risk.city}</p>
+               <p className="mt-1 text-gray-900 dark:text-gray-100">Heat: {risk.heat}</p>
+               <p className="text-gray-900 dark:text-gray-100">Flood: {risk.flood}</p>
+               <p className="text-gray-900 dark:text-gray-100">Air Quality: {risk.air}</p>
+-              <button type="button" className="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">View 3D Map</button>
++              <Link href="/dashboard/risk" className="mt-3 inline-block rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-400">View 3D Map</Link>
+             </>
+           ) : <p className="text-gray-900 dark:text-gray-100">Loading...</p>}
+         </div>
+ 
+-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800">
+-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">SCI Summary</h2>
++        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
++          <div className="flex items-center justify-between">
++            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">SCI Summary</h2>
++            <LiveBadge />
++          </div>
+           {sci?.score !== null && sci ? (
+             <>
+               <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{sci.score} gCO₂</p>
+               <p className="mt-1 text-gray-600 dark:text-gray-300">{sci.interpretation}</p>
+-              <button type="button" className="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">Calculate SCI</button>
++              <Link href="/dashboard/sci" className="mt-3 inline-block rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-400">Calculate SCI</Link>
+             </>
+           ) : <p className="text-gray-900 dark:text-gray-100">No SCI calculations yet.</p>}
+         </div>
+       </div>
+ 
+-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800">
++      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-800">
+         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Telemetry Insights</h2>
+         {telemetry ? (
+           <div className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+diff --git a/pages/dashboard/sci.tsx b/pages/dashboard/sci.tsx
+index 86e1480..b5f86a0 100644
+--- a/pages/dashboard/sci.tsx
++++ b/pages/dashboard/sci.tsx
+@@ -7,7 +7,7 @@ export default function SciPage() {
+     <DashboardLayout>
+       <>
+         <div className="flex justify-end mb-4">
+-          <Link href="/profile" className="text-gray-700 hover:text-green-600 font-medium">
++          <Link href="/profile" className="text-gray-700 hover:text-emerald-500 font-medium dark:text-gray-300 dark:hover:text-emerald-400">
+             My Profile
+           </Link>
+         </div>
+diff --git a/pages/index.tsx b/pages/index.tsx
+index 49d8e0e..cb71fb9 100644
+--- a/pages/index.tsx
++++ b/pages/index.tsx
+@@ -1,33 +1,64 @@
+ import Link from "next/link";
++import { Calculator, Cloud, Map } from "lucide-react";
++import ThemeToggle from "@/components/ThemeToggle";
++import LiveBadge from "@/components/LiveBadge";
++
++const FEATURES = [
++  { icon: Cloud, title: "Carbon Intensity", body: "Live gCO₂/kWh across AWS, Azure, and GCP regions." },
++  { icon: Map, title: "Climate Risk", body: "Heat, flood, and air-quality risk for any city." },
++  { icon: Calculator, title: "SCI Score", body: "Turn workload energy into a carbon impact score." },
++];
+ 
+ export default function Home() {
+   return (
+-    <main className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-white">
+-      <section className="max-w-2xl text-center space-y-6">
+-        <h1 className="text-4xl font-bold">
+-          GreenNeural — Carbon & Climate Risk Explorer
++    <main className="eco-gradient-bg relative min-h-screen bg-white text-gray-900 dark:bg-slate-950 dark:text-white">
++      <ThemeToggle className="fixed right-4 top-4 z-10" />
++
++      <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 py-16 text-center">
++        <LiveBadge label="Live carbon &amp; climate data" />
++
++        <h1 className="mt-6 text-4xl font-bold sm:text-5xl">
++          GreenNeural — Carbon &amp; Climate Risk Explorer
+         </h1>
+-        <p className="text-lg text-slate-300">
+-          See your cloud’s carbon intensity, your city’s climate risk, and your workload’s SCI score — in one simple dashboard.
++        <p className="mt-4 max-w-xl text-lg text-gray-600 dark:text-slate-300">
++          See your cloud&rsquo;s carbon intensity, your city&rsquo;s climate risk, and your
++          workload&rsquo;s SCI score — in one simple dashboard.
+         </p>
+-        <div className="mt-6">
++
++        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+           <Link
+             href="/dashboard"
+-            className="px-6 py-3 rounded-md bg-emerald-500 text-slate-950 font-semibold"
++            className="rounded-md bg-emerald-500 px-6 py-3 font-semibold text-slate-950 transition-colors hover:bg-emerald-400"
+           >
+             Start Free
+           </Link>
++          <Link
++            href="/signup"
++            className="rounded-md bg-gray-100 px-6 py-3 font-semibold text-gray-900 transition-colors hover:bg-gray-200 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
++          >
++            Sign Up
++          </Link>
++          <Link
++            href="/demo"
++            className="rounded-md border border-gray-300 px-6 py-3 font-semibold text-gray-700 transition-colors hover:border-emerald-500 hover:text-emerald-600 dark:border-slate-700 dark:text-slate-200 dark:hover:border-emerald-500 dark:hover:text-emerald-400"
++          >
++            Live Demo — no signup
++          </Link>
+         </div>
+-      </section>
+-      <div className="mt-4 flex justify-center gap-4">
+-  <Link href="/dashboard" className="px-4 py-2 bg-emerald-500 rounded-md">
+-    Start Free
+-  </Link>
+-  <Link href="/signup" className="px-4 py-2 bg-slate-800 rounded-md">
+-    Sign Up
+-  </Link>
+-</div>
+-      
++
++        <dl className="mt-16 grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
++          {FEATURES.map(({ icon: Icon, title, body }) => (
++            <div
++              key={title}
++              className="group rounded-xl border border-gray-200 bg-gray-50 p-5 text-left transition-colors hover:border-emerald-500/40 dark:border-slate-800 dark:bg-slate-900/60"
++            >
++              <Icon size={20} className="mb-3 text-emerald-500 transition-transform group-hover:scale-110 dark:text-emerald-400" aria-hidden="true" />
++              <dt className="font-semibold">{title}</dt>
++              <dd className="mt-1 text-sm text-gray-500 dark:text-slate-400">{body}</dd>
++            </div>
++          ))}
++        </dl>
++      </div>
+     </main>
+   );
+ }
+diff --git a/pages/login.tsx b/pages/login.tsx
+index 18a2730..dc2d857 100644
+--- a/pages/login.tsx
++++ b/pages/login.tsx
+@@ -1,19 +1,27 @@
+ import { useState } from "react";
++import Link from "next/link";
+ import { useRouter } from "next/router";
++import { Leaf } from "lucide-react";
+ import { supabase } from "../lib/supabaseClient";
++import ThemeToggle from "@/components/ThemeToggle";
+ 
+ export default function LoginPage() {
+   const router = useRouter();
+   const [form, setForm] = useState({ email: "", password: "" });
++  const [error, setError] = useState<string | null>(null);
++  const [submitting, setSubmitting] = useState(false);
+ 
+   const handleLogin = async () => {
+-    const { error } = await supabase.auth.signInWithPassword({
++    setError(null);
++    setSubmitting(true);
++    const { error: authError } = await supabase.auth.signInWithPassword({
+       email: form.email,
+       password: form.password,
+     });
++    setSubmitting(false);
+ 
+-    if (error) {
+-      window.alert(error.message);
++    if (authError) {
++      setError(authError.message);
+       return;
+     }
+ 
+@@ -21,30 +29,67 @@ export default function LoginPage() {
+   };
+ 
+   return (
+-    <div className="mx-auto max-w-md p-8">
+-      <h1 className="mb-6 text-3xl font-bold">Login</h1>
+-
+-      <input
+-        type="email"
+-        placeholder="Email"
+-        className="mb-4 w-full rounded bg-gray-100 p-3"
+-        onChange={(event) => setForm({ ...form, email: event.target.value })}
+-      />
+-
+-      <input
+-        type="password"
+-        placeholder="Password"
+-        className="mb-4 w-full rounded bg-gray-100 p-3"
+-        onChange={(event) => setForm({ ...form, password: event.target.value })}
+-      />
+-
+-      <button
+-        type="button"
+-        onClick={handleLogin}
+-        className="rounded-lg bg-green-600 px-4 py-2 text-white"
+-      >
+-        Login
+-      </button>
++    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4 dark:bg-gray-900">
++      <ThemeToggle className="fixed right-4 top-4" />
++
++      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-md dark:border-gray-700 dark:bg-gray-800">
++        <Link href="/" className="mb-6 flex items-center gap-2 text-gray-900 dark:text-gray-100">
++          <Leaf size={20} className="text-emerald-500" aria-hidden="true" />
++          <span className="font-semibold">GreenNeural</span>
++        </Link>
++
++        <h1 className="mb-1 text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome back</h1>
++        <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Log in to see your live sustainability insights.</p>
++
++        {error && (
++          <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
++            {error}
++          </p>
++        )}
++
++        <div className="space-y-4">
++          <div>
++            <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
++              Email
++            </label>
++            <input
++              id="email"
++              type="email"
++              autoComplete="email"
++              placeholder="you@company.com"
++              className="w-full rounded-md bg-gray-100 p-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-gray-900 dark:text-gray-100"
++              onChange={(event) => setForm({ ...form, email: event.target.value })}
++            />
++          </div>
++
++          <div>
++            <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
++              Password
++            </label>
++            <input
++              id="password"
++              type="password"
++              autoComplete="current-password"
++              placeholder="••••••••"
++              className="w-full rounded-md bg-gray-100 p-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-gray-900 dark:text-gray-100"
++              onChange={(event) => setForm({ ...form, password: event.target.value })}
++            />
++          </div>
++        </div>
++
++        <button
++          type="button"
++          onClick={handleLogin}
++          disabled={submitting}
++          className="mt-6 w-full rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
++        >
++          {submitting ? "Logging in…" : "Log in"}
++        </button>
++
++        <Link href="/signup" className="mt-4 block text-center text-sm text-emerald-600 hover:underline dark:text-emerald-400">
++          Don&apos;t have an account? Sign up
++        </Link>
++      </div>
+     </div>
+   );
+ }
+diff --git a/pages/mfa.tsx b/pages/mfa.tsx
+index 62d0e54..cb21ff3 100644
+--- a/pages/mfa.tsx
++++ b/pages/mfa.tsx
+@@ -1,5 +1,6 @@
+ import { useState } from "react";
+ import { supabase } from "../lib/supabaseClient";
++import ThemeToggle from "@/components/ThemeToggle";
+ 
+ export default function MFASetup() {
+   const [qr, setQr] = useState<string | null>(null);
+@@ -46,13 +47,15 @@ export default function MFASetup() {
+   };
+ 
+   return (
+-    <div className="p-8 max-w-xl mx-auto text-gray-900 dark:text-gray-100">
++    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
++      <ThemeToggle className="fixed right-4 top-4" />
++      <div className="mx-auto max-w-xl p-8 text-gray-900 dark:text-gray-100">
+       <h1 className="text-3xl font-bold mb-6">Enable MFA</h1>
+ 
+       {!qr && (
+         <button
+           onClick={generateMFA}
+-          className="px-4 py-2 bg-green-600 text-white rounded-lg"
++          className="px-4 py-2 bg-emerald-500 font-semibold text-slate-950 hover:bg-emerald-400 rounded-lg"
+         >
+           Generate MFA QR Code
+         </button>
+@@ -64,17 +67,18 @@ export default function MFASetup() {
+           <input
+             type="text"
+             placeholder="Enter 6-digit code"
+-            className="p-3 rounded bg-white dark:bg-gray-800"
++            className="p-3 rounded bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+             onChange={(e) => setCode(e.target.value)}
+           />
+           <button
+             onClick={verifyMFA}
+-            className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg"
++            className="mt-4 px-4 py-2 bg-emerald-500 font-semibold text-slate-950 hover:bg-emerald-400 rounded-lg"
+           >
+             Verify MFA
+           </button>
+         </>
+       )}
++      </div>
+     </div>
+   );
+ }
+diff --git a/pages/profile.tsx b/pages/profile.tsx
+index 33ca1cd..fde8961 100644
+--- a/pages/profile.tsx
++++ b/pages/profile.tsx
+@@ -82,72 +82,72 @@ export default function ProfilePage() {
+   return (
+     <DashboardLayout>
+       <div className="max-w-4xl mx-auto space-y-8">
+-      <div className="flex items-center justify-between">
++      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+         <div>
+-          <h1 className="text-2xl font-semibold">Account Profile</h1>
+-          <p className="text-gray-600">
++          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Account Profile</h1>
++          <p className="text-gray-600 dark:text-gray-300">
+             Manage your personal information and sustainability preferences.
+           </p>
+         </div>
+         <button
+           onClick={downloadPDF}
+-          className="bg-green-600 text-white px-4 py-2 rounded shadow-sm hover:bg-green-700"
++          className="w-fit rounded bg-emerald-500 px-4 py-2 font-semibold text-slate-950 shadow-sm hover:bg-emerald-400"
+         >
+           Download PDF Profile
+         </button>
+       </div>
+ 
+-      <section className="bg-white rounded-lg shadow-sm p-4 space-y-4">
+-        <h2 className="text-lg font-semibold">Personal information</h2>
++      <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
++        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Personal information</h2>
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+           <div>
+-            <label className="block text-sm text-gray-700 mb-1" htmlFor="name">
++            <label className="mb-1 block text-sm text-gray-700 dark:text-gray-300" htmlFor="name">
+               Full name
+             </label>
+-            <input id="name" required className="w-full border rounded px-3 py-2" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
++            <input id="name" required className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
+           </div>
+           <div>
+-            <label className="block text-sm text-gray-700 mb-1" htmlFor="email">
++            <label className="mb-1 block text-sm text-gray-700 dark:text-gray-300" htmlFor="email">
+               Email
+             </label>
+-            <input id="email" type="email" required className="w-full border rounded px-3 py-2" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} />
++            <input id="email" type="email" required className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} />
+           </div>
+         </div>
+       </section>
+ 
+-      <section className="bg-white rounded-lg shadow-sm p-4 space-y-4">
+-        <h2 className="text-lg font-semibold">Sustainability preferences</h2>
++      <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
++        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Sustainability preferences</h2>
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+           <div>
+-            <label className="block text-sm text-gray-700 mb-1" htmlFor="cloud-provider">Cloud provider</label>
+-            <select id="cloud-provider" required className="w-full border rounded px-3 py-2" value={profile.cloud_provider} onChange={(e) => setProfile((p) => ({ ...p, cloud_provider: e.target.value }))}>
++            <label className="mb-1 block text-sm text-gray-700 dark:text-gray-300" htmlFor="cloud-provider">Cloud provider</label>
++            <select id="cloud-provider" required className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" value={profile.cloud_provider} onChange={(e) => setProfile((p) => ({ ...p, cloud_provider: e.target.value }))}>
+               <option value="aws">AWS</option>
+               <option value="azure">Azure</option>
+               <option value="gcp">GCP</option>
+             </select>
+           </div>
+           <div>
+-            <label className="block text-sm text-gray-700 mb-1" htmlFor="region">Region</label>
+-            <input id="region" required className="w-full border rounded px-3 py-2" value={profile.region} onChange={(e) => setProfile((p) => ({ ...p, region: e.target.value }))} />
++            <label className="mb-1 block text-sm text-gray-700 dark:text-gray-300" htmlFor="region">Region</label>
++            <input id="region" required className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" value={profile.region} onChange={(e) => setProfile((p) => ({ ...p, region: e.target.value }))} />
+           </div>
+           <div>
+-            <label className="block text-sm text-gray-700 mb-1" htmlFor="city">City</label>
+-            <input id="city" required className="w-full border rounded px-3 py-2" value={profile.city} onChange={(e) => setProfile((p) => ({ ...p, city: e.target.value }))} />
++            <label className="mb-1 block text-sm text-gray-700 dark:text-gray-300" htmlFor="city">City</label>
++            <input id="city" required className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" value={profile.city} onChange={(e) => setProfile((p) => ({ ...p, city: e.target.value }))} />
+           </div>
+         </div>
+ 
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+           <div>
+-            <label className="block text-sm text-gray-700 mb-1" htmlFor="risk-type">Default risk type</label>
+-            <select id="risk-type" required className="w-full border rounded px-3 py-2" value={profile.risk_type} onChange={(e) => setProfile((p) => ({ ...p, risk_type: e.target.value }))}>
++            <label className="mb-1 block text-sm text-gray-700 dark:text-gray-300" htmlFor="risk-type">Default risk type</label>
++            <select id="risk-type" required className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" value={profile.risk_type} onChange={(e) => setProfile((p) => ({ ...p, risk_type: e.target.value }))}>
+               <option value="heat">Heat</option>
+               <option value="flood">Flood</option>
+               <option value="airquality">Air Quality</option>
+             </select>
+           </div>
+           <div>
+-            <label className="block text-sm text-gray-700 mb-1" htmlFor="unit">Units</label>
+-            <select id="unit" required className="w-full border rounded px-3 py-2" value={profile.unit} onChange={(e) => setProfile((p) => ({ ...p, unit: e.target.value }))}>
++            <label className="mb-1 block text-sm text-gray-700 dark:text-gray-300" htmlFor="unit">Units</label>
++            <select id="unit" required className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" value={profile.unit} onChange={(e) => setProfile((p) => ({ ...p, unit: e.target.value }))}>
+               <option value="gco2">gCO₂</option>
+               <option value="kgco2">kgCO₂</option>
+               <option value="tco2">tCO₂</option>
+@@ -156,16 +156,16 @@ export default function ProfilePage() {
+         </div>
+       </section>
+ 
+-      <section className="bg-white rounded-lg shadow-sm p-4 space-y-4">
+-        <h2 className="text-lg font-semibold">Sustainability activity</h2>
+-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
++      <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
++        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Sustainability activity</h2>
++        <div className="grid grid-cols-1 gap-4 text-sm text-gray-700 dark:text-gray-300 md:grid-cols-3">
+           <div><span className="font-semibold">Last SCI score</span><p>{profile.last_sci ?? "No calculations yet"}</p></div>
+           <div><span className="font-semibold">Last carbon intensity</span><p>{profile.last_intensity ?? "No checks yet"}</p></div>
+           <div><span className="font-semibold">Last climate risk city</span><p>{profile.last_risk_city ?? "No searches yet"}</p></div>
+         </div>
+-        <div className="flex items-center justify-between pt-4 border-t">
+-          <div><span className="text-sm text-gray-600">Plan</span><p className="font-semibold capitalize">{profile.plan}</p></div>
+-          <button className="text-sm bg-gray-900 text-white px-3 py-2 rounded">Upgrade (coming soon)</button>
++        <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
++          <div><span className="text-sm text-gray-600 dark:text-gray-400">Plan</span><p className="font-semibold capitalize">{profile.plan}</p></div>
++          <button className="rounded bg-gray-900 px-3 py-2 text-sm text-white hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600">Upgrade (coming soon)</button>
+         </div>
+       </section>
+       </div>
+diff --git a/pages/signup.tsx b/pages/signup.tsx
+index 08402ba..3081d77 100644
+--- a/pages/signup.tsx
++++ b/pages/signup.tsx
+@@ -1,6 +1,7 @@
+-import { useState, type ChangeEvent } from "react";
++import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+ import Link from "next/link";
+ import { useRouter } from "next/router";
++import { Calculator, Cloud, Eye, EyeOff, Map, ShieldCheck } from "lucide-react";
+ import { supabase } from "../lib/supabaseClient";
+ 
+ const COUNTRIES = [
+@@ -43,26 +44,89 @@ const REGIONS_BY_COUNTRY: Record<string, Record<string, string[]>> = {
+   us: { aws: ["us-east-1", "us-east-2", "us-west-1", "us-west-2"], azure: ["eastus", "eastus2", "westus", "westus2", "westus3", "centralus"], gcp: ["us-central1", "us-east1", "us-east4", "us-west1", "us-west2", "us-west3", "us-west4"] },
+ };
+ 
++const FEATURES = [
++  {
++    icon: Cloud,
++    title: "Carbon Intensity",
++    body: "See live gCO₂/kWh for every AWS, Azure, and GCP region, and instantly spot the cleanest one to deploy to.",
++  },
++  {
++    icon: Map,
++    title: "Climate Risk Map",
++    body: "Track heat, flood, and air-quality risk for any city your infrastructure or team depends on.",
++  },
++  {
++    icon: Calculator,
++    title: "SCI Calculator",
++    body: "Turn energy use and regional carbon intensity into a Software Carbon Intensity score you can act on.",
++  },
++];
++
++const fieldClasses =
++  "w-full rounded-md border border-transparent bg-white p-3 text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-gray-800 dark:text-gray-100";
++const labelClasses = "mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300";
++const errorClasses = "mt-1 text-sm text-red-600 dark:text-red-400";
++
++type FormState = {
++  name: string;
++  email: string;
++  password: string;
++  country: string;
++  cloud: string;
++  region: string;
++  city: string;
++  interest: string;
++};
++
++type FieldErrors = Partial<Record<keyof FormState, string>>;
++
++const EMPTY_FORM: FormState = {
++  name: "",
++  email: "",
++  password: "",
++  country: "",
++  cloud: "",
++  region: "",
++  city: "",
++  interest: "",
++};
++
+ export default function SignupPage() {
+   const router = useRouter();
+-  const [form, setForm] = useState({
+-    name: "",
+-    email: "",
+-    password: "",
+-    country: "",
+-    cloud: "",
+-    region: "",
+-    city: "",
+-    interest: "",
+-  });
+-
+-  const update = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+-    setForm({ ...form, [e.target.name]: e.target.value });
+-
+-  const availableRegions = REGIONS_BY_COUNTRY[form.country]?.[form.cloud] ?? [];
+-
+-  const handleSignup = async () => {
++  const [form, setForm] = useState<FormState>(EMPTY_FORM);
++  const [errors, setErrors] = useState<FieldErrors>({});
++  const [submitting, setSubmitting] = useState(false);
++  const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
++  const [showPassword, setShowPassword] = useState(false);
++
++  const update = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
++    const { name, value } = e.target;
++    setForm((current) => ({ ...current, [name]: value }));
++    setErrors((current) => ({ ...current, [name]: undefined }));
++  };
++
++  const availableRegions = useMemo(
++    () => REGIONS_BY_COUNTRY[form.country]?.[form.cloud] ?? [],
++    [form.country, form.cloud],
++  );
++
++  function validate(): FieldErrors {
++    const next: FieldErrors = {};
++    if (!form.name.trim()) next.name = "Enter your full name.";
++    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) next.email = "Enter a valid email address.";
++    if (form.password.length < 8) next.password = "Use at least 8 characters.";
++    return next;
++  }
++
++  async function handleSignup(event: FormEvent) {
++    event.preventDefault();
++    const validationErrors = validate();
++    setErrors(validationErrors);
++    setStatus(null);
++    if (Object.keys(validationErrors).length > 0) return;
++
+     const { name, email, password, country, cloud, region, city, interest } = form;
++    setSubmitting(true);
+ 
+     try {
+       const { data: authData, error: authError } = await supabase.auth.signUp({
+@@ -74,14 +138,13 @@ export default function SignupPage() {
+       });
+ 
+       if (authError) {
+-        window.alert(`Signup failed: ${authError.message}`);
++        setStatus({ type: "error", message: authError.message });
+         return;
+       }
+ 
+       const user = authData.user;
+-
+       if (!user) {
+-        window.alert("Signup failed: Supabase did not return a user.");
++        setStatus({ type: "error", message: "Supabase did not return a user. Please try again." });
+         return;
+       }
+ 
+@@ -98,128 +161,249 @@ export default function SignupPage() {
+       });
+ 
+       if (profileError) {
+-        window.alert(`Profile creation failed: ${profileError.message}`);
++        setStatus({ type: "error", message: `Account created, but your profile failed to save: ${profileError.message}` });
+         return;
+       }
+ 
+-      window.alert("Account created! Please check your email to verify your account.");
+-      await router.push("/login");
++      setStatus({ type: "success", message: "Account created! Check your email to verify your account." });
++      setTimeout(() => router.push("/login"), 1200);
+     } catch (error) {
+       const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+-      window.alert(`Signup failed: ${message}`);
++      setStatus({ type: "error", message });
++    } finally {
++      setSubmitting(false);
+     }
+-  };
++  }
+ 
+   return (
+     <div className="flex min-h-screen flex-col bg-gray-100 dark:bg-gray-900 md:flex-row">
+-
+-      {/* Left Panel */}
+-      <div className="flex w-full flex-col justify-center bg-[#0F1E2E] p-8 text-white md:w-1/2 md:p-12">
+-        <h1 className="mb-4 text-3xl font-bold md:text-4xl">GreenNeural v1</h1>
+-        <p className="mb-6 text-base md:text-lg">
+-          Your climate intelligence companion. Real‑time carbon intensity,
+-          live climate risk maps, and SCI calculations — all in one place.
++      {/* Left Panel — what GreenNeural is and why it's worth signing up for */}
++      <div className="flex w-full flex-col justify-center bg-[#0F1E2E] p-6 text-white sm:p-8 md:w-1/2 md:p-12">
++        <h1 className="mb-3 text-3xl font-bold sm:text-4xl">GreenNeural</h1>
++        <p className="mb-8 max-w-md text-base text-slate-300 sm:text-lg">
++          Your climate intelligence companion — live carbon intensity, climate risk, and SCI
++          scoring in one dashboard, so sustainability decisions take seconds, not spreadsheets.
+         </p>
+ 
+-        <p className="text-sm opacity-80 mb-6">
+-          Start free and explore sustainability insights built for developers,
+-          engineers, and climate‑focused teams.
+-        </p>
++        <ul className="mb-8 space-y-5">
++          {FEATURES.map(({ icon: Icon, title, body }) => (
++            <li key={title} className="flex gap-3">
++              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
++                <Icon size={18} aria-hidden="true" />
++              </span>
++              <div>
++                <p className="font-semibold text-white">{title}</p>
++                <p className="text-sm text-slate-300">{body}</p>
++              </div>
++            </li>
++          ))}
++        </ul>
+ 
+-        <Link
+-          href="#signup-form"
+-          className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg w-fit"
+-        >
+-          Start Free
+-        </Link>
++        <div className="flex flex-wrap items-center gap-3">
++          <Link
++            href="#signup-form"
++            className="rounded-lg bg-emerald-500 px-6 py-3 font-semibold text-slate-950 hover:bg-emerald-400"
++          >
++            Create free account
++          </Link>
++          <Link
++            href="/demo"
++            className="rounded-lg border border-slate-600 px-6 py-3 font-semibold text-slate-200 hover:border-emerald-500 hover:text-emerald-400"
++          >
++            Try the live demo first
++          </Link>
++        </div>
++
++        <p className="mt-8 flex items-center gap-2 text-xs text-slate-400">
++          <ShieldCheck size={14} aria-hidden="true" />
++          Encrypted storage and secure authentication. We never sell or share your data.
++        </p>
+       </div>
+ 
+-      {/* Right Panel */}
+-      <div className="flex w-full flex-col justify-center p-8 md:w-1/2 md:p-12" id="signup-form">
+-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
+-          Create Your Account
++      {/* Right Panel — the form */}
++      <div className="flex w-full flex-col justify-center p-6 sm:p-8 md:w-1/2 md:p-12" id="signup-form">
++        <h2 className="mb-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">
++          Create your account
+         </h2>
++        <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Free to start. No credit card required.</p>
+ 
+-        <div className="space-y-4">
++        {status && (
++          <div
++            role="status"
++            className={`mb-4 rounded-md p-3 text-sm ${
++              status.type === "success"
++                ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
++                : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
++            }`}
++          >
++            {status.message}
++          </div>
++        )}
+ 
+-          <input name="name" placeholder="Full Name"
+-            onChange={update}
+-            className="w-full p-3 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+-          />
++        <form onSubmit={handleSignup} noValidate className="space-y-6">
++          <fieldset className="space-y-4">
++            <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
++              Account
++            </legend>
+ 
+-          <input name="email" placeholder="Email Address"
+-            onChange={update}
+-            className="w-full p-3 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+-          />
++            <div>
++              <label htmlFor="name" className={labelClasses}>Full name</label>
++              <input
++                id="name"
++                name="name"
++                autoComplete="name"
++                placeholder="Jordan Rivera"
++                value={form.name}
++                onChange={update}
++                aria-invalid={Boolean(errors.name)}
++                className={fieldClasses}
++              />
++              {errors.name && <p className={errorClasses}>{errors.name}</p>}
++            </div>
+ 
+-          <input name="password" type="password" placeholder="Password"
+-            onChange={update}
+-            className="w-full p-3 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+-          />
++            <div>
++              <label htmlFor="email" className={labelClasses}>Email address</label>
++              <input
++                id="email"
++                name="email"
++                type="email"
++                autoComplete="email"
++                placeholder="you@company.com"
++                value={form.email}
++                onChange={update}
++                aria-invalid={Boolean(errors.email)}
++                className={fieldClasses}
++              />
++              {errors.email && <p className={errorClasses}>{errors.email}</p>}
++            </div>
+ 
+-          <select name="country" value={form.country}
+-            onChange={(event) => setForm((current) => ({ ...current, country: event.target.value, region: "" }))}
+-            className="w-full p-3 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+-          >
+-            <option value="">Country</option>
+-            {COUNTRIES.map((country) => (
+-              <option key={country.value} value={country.value}>{country.label}</option>
+-            ))}
+-          </select>
+-
+-          <select name="cloud" value={form.cloud}
+-            onChange={(event) => setForm((current) => ({ ...current, cloud: event.target.value, region: "" }))}
+-            className="w-full p-3 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+-          >
+-            <option value="">Preferred Cloud Provider</option>
+-            <option value="aws">AWS</option>
+-            <option value="azure">Azure</option>
+-            <option value="gcp">GCP</option>
+-          </select>
+-
+-          <select name="region" value={form.region} onChange={update}
+-            disabled={!form.country || !form.cloud || availableRegions.length === 0}
+-            className="w-full p-3 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+-          >
+-            <option value="">
+-              {!form.country || !form.cloud
+-                ? "Select country and provider first"
+-                : availableRegions.length === 0
+-                  ? "No regions available for this selection"
+-                  : "Preferred Cloud Region"}
+-            </option>
+-            {availableRegions.map((region) => (
+-              <option key={region} value={region}>{region}</option>
+-            ))}
+-          </select>
+-
+-          <input name="city" type="text" placeholder="City (optional)"
+-            onChange={update}
+-            className="w-full p-3 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+-          />
+-
+-          <select name="interest" onChange={update}
+-            className="w-full p-3 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+-          >
+-            <option value="">Sustainability Interest</option>
+-            <option value="heat">Heat Risk</option>
+-            <option value="flood">Flood Risk</option>
+-            <option value="air">Air Quality</option>
+-            <option value="carbon">Carbon Optimization</option>
+-          </select>
++            <div>
++              <label htmlFor="password" className={labelClasses}>Password</label>
++              <div className="relative">
++                <input
++                  id="password"
++                  name="password"
++                  type={showPassword ? "text" : "password"}
++                  autoComplete="new-password"
++                  placeholder="At least 8 characters"
++                  value={form.password}
++                  onChange={update}
++                  aria-invalid={Boolean(errors.password)}
++                  className={`${fieldClasses} pr-11`}
++                />
++                <button
++                  type="button"
++                  onClick={() => setShowPassword((current) => !current)}
++                  aria-label={showPassword ? "Hide password" : "Show password"}
++                  className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
++                >
++                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
++                </button>
++              </div>
++              {errors.password && <p className={errorClasses}>{errors.password}</p>}
++            </div>
++          </fieldset>
+ 
+-        </div>
++          <fieldset className="space-y-4">
++            <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
++              Your setup <span className="font-normal normal-case text-gray-400">(optional — personalizes your dashboard)</span>
++            </legend>
++
++            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
++              <div>
++                <label htmlFor="country" className={labelClasses}>Country</label>
++                <select
++                  id="country"
++                  name="country"
++                  value={form.country}
++                  onChange={(event) => setForm((current) => ({ ...current, country: event.target.value, region: "" }))}
++                  className={fieldClasses}
++                >
++                  <option value="">Select country</option>
++                  {COUNTRIES.map((country) => (
++                    <option key={country.value} value={country.value}>{country.label}</option>
++                  ))}
++                </select>
++              </div>
++
++              <div>
++                <label htmlFor="cloud" className={labelClasses}>Cloud provider</label>
++                <select
++                  id="cloud"
++                  name="cloud"
++                  value={form.cloud}
++                  onChange={(event) => setForm((current) => ({ ...current, cloud: event.target.value, region: "" }))}
++                  className={fieldClasses}
++                >
++                  <option value="">Select provider</option>
++                  <option value="aws">AWS</option>
++                  <option value="azure">Azure</option>
++                  <option value="gcp">GCP</option>
++                </select>
++              </div>
++            </div>
+ 
+-        <button
+-          type="button"
+-          onClick={handleSignup}
+-          className="mt-6 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg"
+-        >
+-          Start Free
+-        </button>
++            <div>
++              <label htmlFor="region" className={labelClasses}>Cloud region</label>
++              <select
++                id="region"
++                name="region"
++                value={form.region}
++                onChange={update}
++                disabled={!form.country || !form.cloud || availableRegions.length === 0}
++                className={`${fieldClasses} disabled:cursor-not-allowed disabled:opacity-60`}
++              >
++                <option value="">
++                  {!form.country || !form.cloud
++                    ? "Select country and provider first"
++                    : availableRegions.length === 0
++                      ? "No regions available for this selection"
++                      : "Select region"}
++                </option>
++                {availableRegions.map((region) => (
++                  <option key={region} value={region}>{region}</option>
++                ))}
++              </select>
++            </div>
++
++            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
++              <div>
++                <label htmlFor="city" className={labelClasses}>City <span className="font-normal text-gray-400">(optional)</span></label>
++                <input
++                  id="city"
++                  name="city"
++                  type="text"
++                  placeholder="London"
++                  value={form.city}
++                  onChange={update}
++                  className={fieldClasses}
++                />
++              </div>
++
++              <div>
++                <label htmlFor="interest" className={labelClasses}>Main interest</label>
++                <select id="interest" name="interest" value={form.interest} onChange={update} className={fieldClasses}>
++                  <option value="">Select an interest</option>
++                  <option value="heat">Heat Risk</option>
++                  <option value="flood">Flood Risk</option>
++                  <option value="air">Air Quality</option>
++                  <option value="carbon">Carbon Optimization</option>
++                </select>
++              </div>
++            </div>
++          </fieldset>
++
++          <button
++            type="submit"
++            disabled={submitting}
++            className="w-full rounded-lg bg-emerald-500 px-6 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
++          >
++            {submitting ? "Creating your account…" : "Create free account"}
++          </button>
++        </form>
+ 
+-        <Link href="/auth" className="mt-4 text-blue-600 dark:text-blue-400">
+-          Already have an account? Login
++        <Link href="/auth" className="mt-4 inline-block text-emerald-600 hover:underline dark:text-emerald-400">
++          Already have an account? Log in
+         </Link>
+       </div>
+     </div>
+diff --git a/styles/globals.css b/styles/globals.css
+index ebd4c43..b318517 100644
+--- a/styles/globals.css
++++ b/styles/globals.css
+@@ -5,6 +5,14 @@
+ :root {
+   --background: #ffffff;
+   --foreground: #171717;
++
++  /* Sustainability accent palette — used sparingly for live-data emphasis
++     (pulse dots, gradient hero, "cleanest region" highlights) rather than
++     replacing the emerald/slate system already used across the app. */
++  --eco-leaf: #10b981;
++  --eco-canopy: #047857;
++  --eco-sky: #38bdf8;
++  --eco-soil: #78350f;
+ }
+ 
+ :root.dark {
+@@ -12,8 +20,42 @@
+   --foreground: #ededed;
+ }
+ 
++html {
++  color-scheme: light;
++}
++
++html.dark {
++  color-scheme: dark;
++}
++
+ body {
+   background: var(--background);
+   color: var(--foreground);
+   font-family: Arial, Helvetica, sans-serif;
++  transition: background-color 200ms ease, color 200ms ease;
++}
++
++/* A gentle gradient wash used on hero/marketing sections to give the app a
++   living, sustainability-forward feel without leaning on a stock photo. */
++.eco-gradient-bg {
++  background-image:
++    radial-gradient(60% 60% at 15% 15%, color-mix(in srgb, var(--eco-leaf) 18%, transparent) 0%, transparent 60%),
++    radial-gradient(50% 50% at 85% 10%, color-mix(in srgb, var(--eco-sky) 14%, transparent) 0%, transparent 55%);
++}
++
++/* A small breathing dot to signal "this value is live", used next to
++   real-time metrics across the dashboard and demo. */
++@keyframes eco-pulse {
++  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--eco-leaf) 55%, transparent); }
++  100% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--eco-leaf) 0%, transparent); }
++}
++
++.eco-live-dot {
++  animation: eco-pulse 1.8s ease-out infinite;
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .eco-live-dot {
++    animation: none;
++  }
+ }
