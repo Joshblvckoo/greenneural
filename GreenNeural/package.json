@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "mapbox-gl": "^3.30.0",
-    "vercel": "^59.15.0"
-  }
-}

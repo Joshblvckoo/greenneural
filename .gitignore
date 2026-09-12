@@ -1,22 +1,31 @@
-# Dependencies
-node_modules/
+# Dependencies and build output
+**/node_modules/
+**/.next/
+**/out/
+**/.vercel/
 
-# Next.js
-.next/
-out/
-.vercel/
+# Python environments and generated files
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
 
 # Local environment files
-.env
-.env.*
-!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
 # Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
 # Editor and OS files
 .vscode/
+**/.vscode/
 .DS_Store
 Thumbs.db
+
+# Legacy nested workspace (kept ignored if a local process still holds it)
+GreenNeural/
