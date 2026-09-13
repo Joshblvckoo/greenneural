@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Leaf } from "lucide-react";
+import BrandLogo from "./BrandLogo";
 
 export default function Footer() {
   return (
@@ -7,8 +7,7 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
         <div>
           <div className="flex items-center gap-2">
-            <Leaf style={{ color: 'var(--gn-accent)' }} />
-            <span className="font-bold text-lg">GreenNeural</span>
+            <BrandLogo className="h-8 w-auto" />
           </div>
           <p className="mt-2 text-sm" style={{ color: 'var(--gn-muted)' }}>
             Sustainable tech intelligence platform for developers.

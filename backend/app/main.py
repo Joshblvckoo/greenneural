@@ -31,8 +31,8 @@ app.add_middleware(
 
 
 
-ELECTRICITY_MAPS_KEY = os.getenv("ELECTRICITY_MAPS_KEY")
-OPENWEATHER_API_KEY = os.getenv("OWM_KEY")
+ELECTRICITY_MAPS_KEY = os.getenv("ELECTRICITY_MAPS_KEY") or os.getenv("ELECTRICITYMAPS_API_KEY")
+OPENWEATHER_API_KEY = os.getenv("OWM_KEY") or os.getenv("OPENWEATHER_API_KEY")
 
 GLOBAL_CITY_LIST = [
     "london", "manchester", "birmingham", "paris", "berlin", "frankfurt",

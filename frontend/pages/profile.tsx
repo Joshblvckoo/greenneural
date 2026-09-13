@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Check, Edit3, X } from "lucide-react";
 import jsPDF from "jspdf";
 import { supabase } from "../lib/supabaseClient";
 import DashboardLayout from "../components/DashboardLayout";
@@ -35,6 +36,9 @@ const defaultProfile: Profile = {
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
+  const [draft, setDraft] = useState<Profile>(defaultProfile);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -50,13 +54,28 @@ export default function ProfilePage() {
         .eq("id", user.id)
         .single();
 
-      if (!error && data) {
-        setProfile({ ...defaultProfile, ...data });
-      }
+      const metadata = user.user_metadata ?? {};
+      const loaded = { ...defaultProfile, name: metadata.name ?? "", email: user.email ?? "", cloud_provider: metadata.cloud_provider ?? defaultProfile.cloud_provider, interest: metadata.interest ?? "", ...(data ?? {}) };
+      if (error && error.code !== "PGRST116") console.warn("Could not load profile row", error.message);
+      setProfile(loaded);
+      setDraft(loaded);
     };
 
     void loadProfile();
   }, []);
+
+  const updateDraft = (changes: Partial<Profile>) => setDraft((current) => ({ ...current, ...changes }));
+
+  const saveProfile = async () => {
+    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { error } = await supabase.from("profiles").upsert({ id: user.id, ...draft });
+      if (!error) { setProfile(draft); setIsEditing(false); }
+      else console.error("Could not save profile", error.message);
+    }
+    setSaving(false);
+  };
 
   const downloadPDF = () => {
     const doc = new jsPDF();
@@ -89,38 +108,33 @@ export default function ProfilePage() {
             Manage your personal information and sustainability preferences.
           </p>
         </div>
-        <button
-          onClick={downloadPDF}
-          className="bg-green-600 text-white px-4 py-2 rounded shadow-sm hover:bg-green-700"
-        >
-          Download PDF Profile
-        </button>
+        <div className="flex gap-2"><button type="button" onClick={() => { setDraft(profile); setIsEditing(true); }} disabled={isEditing} className="inline-flex items-center gap-2 rounded bg-emerald-600 px-4 py-2 text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"><Edit3 size={16} /> Edit</button><button type="button" onClick={downloadPDF} className="rounded bg-emerald-600 px-4 py-2 text-white shadow-sm hover:bg-emerald-700">Download PDF</button></div>
       </div>
 
       <section className="bg-white rounded-lg shadow-sm p-4 space-y-4">
         <h2 className="text-lg font-semibold">Personal information</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="block text-sm text-gray-700 mb-1" htmlFor="name">
               Full name
             </label>
-            <input id="name" required className="w-full border rounded px-3 py-2" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
+            <input id="name" required disabled={!isEditing} className="w-full rounded border px-3 py-2 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-900" value={draft.name} onChange={(e) => updateDraft({ name: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1" htmlFor="email">
               Email
             </label>
-            <input id="email" type="email" required className="w-full border rounded px-3 py-2" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} />
+            <input id="email" type="email" required disabled className="w-full rounded border px-3 py-2 bg-gray-100 text-gray-500 dark:bg-gray-900" value={draft.email} />
           </div>
         </div>
       </section>
 
       <section className="bg-white rounded-lg shadow-sm p-4 space-y-4">
         <h2 className="text-lg font-semibold">Sustainability preferences</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
             <label className="block text-sm text-gray-700 mb-1" htmlFor="cloud-provider">Cloud provider</label>
-            <select id="cloud-provider" required className="w-full border rounded px-3 py-2" value={profile.cloud_provider} onChange={(e) => setProfile((p) => ({ ...p, cloud_provider: e.target.value }))}>
+            <select id="cloud-provider" required disabled={!isEditing} className="w-full rounded border px-3 py-2 disabled:bg-gray-100 dark:disabled:bg-gray-900" value={draft.cloud_provider} onChange={(e) => updateDraft({ cloud_provider: e.target.value })}>
               <option value="aws">AWS</option>
               <option value="azure">Azure</option>
               <option value="gcp">GCP</option>
@@ -128,18 +142,18 @@ export default function ProfilePage() {
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1" htmlFor="region">Region</label>
-            <input id="region" required className="w-full border rounded px-3 py-2" value={profile.region} onChange={(e) => setProfile((p) => ({ ...p, region: e.target.value }))} />
+            <input id="region" required disabled={!isEditing} className="w-full rounded border px-3 py-2 disabled:bg-gray-100 dark:disabled:bg-gray-900" value={draft.region} onChange={(e) => updateDraft({ region: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1" htmlFor="city">City</label>
-            <input id="city" required className="w-full border rounded px-3 py-2" value={profile.city} onChange={(e) => setProfile((p) => ({ ...p, city: e.target.value }))} />
+            <input id="city" required disabled={!isEditing} className="w-full rounded border px-3 py-2 disabled:bg-gray-100 dark:disabled:bg-gray-900" value={draft.city} onChange={(e) => updateDraft({ city: e.target.value })} />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
             <label className="block text-sm text-gray-700 mb-1" htmlFor="risk-type">Default risk type</label>
-            <select id="risk-type" required className="w-full border rounded px-3 py-2" value={profile.risk_type} onChange={(e) => setProfile((p) => ({ ...p, risk_type: e.target.value }))}>
+            <select id="risk-type" required disabled={!isEditing} className="w-full rounded border px-3 py-2 disabled:bg-gray-100 dark:disabled:bg-gray-900" value={draft.risk_type} onChange={(e) => updateDraft({ risk_type: e.target.value })}>
               <option value="heat">Heat</option>
               <option value="flood">Flood</option>
               <option value="airquality">Air Quality</option>
@@ -147,7 +161,7 @@ export default function ProfilePage() {
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1" htmlFor="unit">Units</label>
-            <select id="unit" required className="w-full border rounded px-3 py-2" value={profile.unit} onChange={(e) => setProfile((p) => ({ ...p, unit: e.target.value }))}>
+            <select id="unit" required disabled={!isEditing} className="w-full rounded border px-3 py-2 disabled:bg-gray-100 dark:disabled:bg-gray-900" value={draft.unit} onChange={(e) => updateDraft({ unit: e.target.value })}>
               <option value="gco2">gCO₂</option>
               <option value="kgco2">kgCO₂</option>
               <option value="tco2">tCO₂</option>
@@ -155,6 +169,8 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
+
+      {isEditing && <div className="flex justify-end gap-2"><button type="button" onClick={() => { setDraft(profile); setIsEditing(false); }} className="inline-flex items-center gap-2 rounded border px-4 py-2"><X size={16} /> Cancel</button><button type="button" onClick={saveProfile} disabled={saving} className="inline-flex items-center gap-2 rounded bg-emerald-600 px-4 py-2 text-white"><Check size={16} /> {saving ? "Saving…" : "Save changes"}</button></div>}
 
       <section className="bg-white rounded-lg shadow-sm p-4 space-y-4">
         <h2 className="text-lg font-semibold">Sustainability activity</h2>

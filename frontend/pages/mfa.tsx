@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import Link from "next/link";
-import { Leaf, ShieldCheck, QrCode, KeyRound, CheckCircle, AlertCircle } from "lucide-react";
+import { ShieldCheck, QrCode, KeyRound, CheckCircle, AlertCircle } from "lucide-react";
+import BrandLogo from "../components/BrandLogo";
 
 export default function MFASetup() {
   const [qr, setQr] = useState<string | null>(null);
@@ -51,8 +52,7 @@ export default function MFASetup() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 py-5 md:px-12 max-w-7xl mx-auto w-full">
         <Link href="/" className="flex items-center gap-2">
-          <Leaf size={20} className="text-emerald-400" />
-          <span className="font-bold text-base gn-gradient-text">GreenNeural</span>
+          <BrandLogo className="h-8 w-auto" />
         </Link>
         <Link href="/dashboard" className="gn-btn-ghost text-sm px-4 py-2">
           Back to Dashboard

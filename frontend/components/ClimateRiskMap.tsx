@@ -42,24 +42,36 @@ export default function ClimateRiskMap({ riskType, selectedCity }: ClimateRiskMa
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    const activeMap = map;
     const controller = new AbortController();
+    let disposed = false;
 
     async function updateRiskMarkers() {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/risk/live-map?type=${riskType}`,
-        { signal: controller.signal },
-      );
-      if (!response.ok) return;
-      const cities: CityRisk[] = await response.json();
-      riskMarkersRef.current.forEach((marker) => marker.remove());
-      riskMarkersRef.current = cities.map((city) => new mapboxgl.Marker({ color: city.color })
-        .setLngLat([city.lng, city.lat])
-        .setPopup(new mapboxgl.Popup().setText(`${city.city} — Risk score: ${city.risk}`))
-        .addTo(map!));
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/risk/live-map?type=${riskType}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok || disposed) return;
+        const cities: CityRisk[] = await response.json();
+        if (disposed) return;
+        riskMarkersRef.current.forEach((marker) => marker.remove());
+        riskMarkersRef.current = cities.map((city) => new mapboxgl.Marker({ color: city.color })
+          .setLngLat([city.lng, city.lat])
+          .setPopup(new mapboxgl.Popup().setText(`${city.city} — Risk score: ${city.risk}`))
+          .addTo(activeMap));
+      } catch (error) {
+        if (!disposed && error instanceof Error && error.name !== "AbortError") {
+          console.error("Unable to load climate risk markers", error);
+        }
+      }
     }
 
     void updateRiskMarkers();
-    return () => controller.abort();
+    return () => {
+      disposed = true;
+      controller.abort();
+    };
   }, [riskType]);
 
   useEffect(() => {

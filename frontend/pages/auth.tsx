@@ -2,7 +2,8 @@ import { supabase } from "../lib/supabaseClient";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { Leaf, Mail, Lock, AlertCircle, ArrowRight, Zap, Map, Calculator } from "lucide-react";
+import { Mail, Lock, AlertCircle, ArrowRight, Zap, Map, Calculator } from "lucide-react";
+import BrandLogo from "../components/BrandLogo";
 
 const perks = [
   { icon: Zap, text: "Real-time carbon intensity across 60+ cloud regions" },
@@ -53,8 +54,7 @@ export default function AuthPage() {
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 w-fit">
-          <Leaf size={20} className="text-emerald-400" />
-          <span className="font-bold text-base tracking-tight gn-gradient-text">GreenNeural</span>
+          <BrandLogo className="h-8 w-auto" />
         </Link>
 
         {/* Central copy */}

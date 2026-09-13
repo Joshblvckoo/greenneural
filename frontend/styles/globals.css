@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Design Tokens */
 :root {
@@ -38,6 +37,10 @@ body {
   color: var(--gn-text);
   width: 100%;
   transition: all 300ms ease;
+}
+
+.gn-input.pl-10 {
+  padding-left: 2.75rem;
 }
 
 .gn-btn-primary {

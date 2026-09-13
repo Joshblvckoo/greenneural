@@ -64,8 +64,8 @@ export default function DashboardHome() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-      <div className="flex justify-end mb-4">
-        <Link href="/profile" className="text-gray-700 hover:text-green-600 font-medium">
+      <div className="mb-4 flex justify-end">
+        <Link href="/profile" className="font-medium text-emerald-300 hover:text-emerald-200">
           My Profile
         </Link>
       </div>
@@ -73,19 +73,21 @@ export default function DashboardHome() {
       <p className="text-gray-600">Your sustainability insights at a glance.</p>
       {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6">
+        <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-md dark:border-gray-700 dark:bg-gray-800 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Carbon Intensity</h2>
           {carbon ? (
             <>
-              <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{carbonIntensity ?? "N/A"} gCO₂/kWh</p>
+              <p className="mt-2 break-words text-2xl font-bold text-gray-900 dark:text-gray-100 sm:text-3xl">
+                {carbonIntensity ?? "N/A"} <span className="whitespace-nowrap text-xl sm:text-2xl">gCO₂/kWh</span>
+              </p>
               <p className="mt-1 text-gray-600 dark:text-gray-300">Region: {carbon.region}</p>
               <button type="button" className="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">Check Regions</button>
             </>
           ) : <p>Loading...</p>}
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800">
+        <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-md dark:border-gray-700 dark:bg-gray-800 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Climate Risk</h2>
           {risk ? (
             <>
@@ -98,7 +100,7 @@ export default function DashboardHome() {
           ) : <p className="text-gray-900 dark:text-gray-100">Loading...</p>}
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-800">
+        <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-md dark:border-gray-700 dark:bg-gray-800 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">SCI Summary</h2>
           {sci?.score !== null && sci ? (
             <>

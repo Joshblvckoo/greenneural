@@ -3,23 +3,19 @@ import dynamic from "next/dynamic";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { Calculator, Cloud, Compass, Map } from "lucide-react";
+import { Cloud, Map } from "lucide-react";
 import DemoTopBar from "@/components/DemoTopBar";
 import CarbonTab from "@/components/CarbonTab";
-import SciTab from "@/components/SciTab";
-import RegionExplorer from "@/components/RegionExplorer";
 import CitySearchBar, { type SelectedCity } from "@/components/CitySearchBar";
 import Footer from "@/components/Footer";
 
 const ClimateRiskMap = dynamic(() => import("@/components/ClimateRiskMap"), { ssr: false });
 
-type DemoTab = "carbon" | "risk" | "sci" | "regions";
+type DemoTab = "carbon" | "risk";
 
 const TABS: { key: DemoTab; label: string; icon: typeof Cloud }[] = [
   { key: "carbon", label: "Carbon Intensity", icon: Cloud },
   { key: "risk", label: "Climate Risk Map", icon: Map },
-  { key: "sci", label: "SCI Calculator", icon: Calculator },
-  { key: "regions", label: "Region Explorer", icon: Compass },
 ];
 
 export default function DemoDashboard() {
@@ -52,7 +48,7 @@ export default function DemoDashboard() {
         />
       </Head>
 
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
         <DemoTopBar embed={embed} />
 
         <div className="mx-auto max-w-6xl p-4 sm:p-6">
@@ -113,11 +109,6 @@ export default function DemoDashboard() {
             </div>
           )}
 
-          {activeTab === "sci" && (
-            <SciTab disableTelemetry onCheckGreenerRegions={() => setActiveTab("regions")} />
-          )}
-
-          {activeTab === "regions" && <RegionExplorer onSelectRegion={() => setActiveTab("carbon")} />}
         </div>
 
         {!embed && (

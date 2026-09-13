@@ -18,6 +18,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import BrandLogo from "./BrandLogo";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -76,9 +77,9 @@ export default function CollapsibleSidebar({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="font-bold text-base gn-gradient-text tracking-tight"
+              className="block"
             >
-              GreenNeural
+              <BrandLogo className="h-7 w-auto" />
             </motion.span>
           )}
         </AnimatePresence>
