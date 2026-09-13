@@ -17,8 +17,8 @@ load_dotenv()
 app = FastAPI(title="GreenNeural API", version="1.0")
 
 origins = [
-    "https://greenneural-frontend.vercel.app",
-    "http://localhost:3000",
+    "https://greenneural.up.railway.app",
+    "http://localhost:3000"
 ]
 
 app.add_middleware(
