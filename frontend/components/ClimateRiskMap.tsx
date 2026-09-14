@@ -18,9 +18,11 @@ export default function ClimateRiskMap({ riskType, selectedCity }: ClimateRiskMa
   const riskMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const selectedMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current || !accessToken || mapRef.current) return;
+    setMapError(null);
     mapboxgl.accessToken = accessToken;
     const map = new mapboxgl.Map({
       container: mapContainer.current,
@@ -35,6 +37,11 @@ export default function ClimateRiskMap({ riskType, selectedCity }: ClimateRiskMa
     });
     map.on("error", (event) => {
       console.error("Mapbox failed to load the climate-risk globe", event.error);
+      if (event.error?.message?.toLowerCase().includes("access token") || event.error?.message?.includes("401")) {
+        setMapError("Mapbox rejected the access token. Update NEXT_PUBLIC_MAPBOX_TOKEN in the deployment environment.");
+      } else {
+        setMapError("The climate-risk globe could not load. Check the Mapbox token and network connection.");
+      }
     });
     mapRef.current = map;
 
@@ -96,6 +103,12 @@ export default function ClimateRiskMap({ riskType, selectedCity }: ClimateRiskMa
   if (!accessToken) {
     return <div className="flex h-[600px] w-full items-center justify-center rounded-lg border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
       Map preview unavailable. Configure NEXT_PUBLIC_MAPBOX_TOKEN to show the climate-risk globe.
+    </div>;
+  }
+
+  if (mapError) {
+    return <div className="flex h-[600px] w-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-6 text-center text-sm text-red-900 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+      {mapError}
     </div>;
   }
 
