@@ -1,37 +1,45 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
-from collections import Counter
-import asyncio
-import os
-from dotenv import load_dotenv
-from pydantic import BaseModel
-import httpx
-from app.config.regions import get_supported_regions
-from app.config.cities import CITIES, CITY_COORDS
-from cloud_region_to_grid_zone import CLOUD_REGION_MAP
-
-load_dotenv()
-
 
 app = FastAPI(title="GreenNeural API", version="1.0")
 
-origins = [
-    "https://www.thegreenneural.com",
-    "http://localhost:3000",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://www.thegreenneural.com",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from app.api.v1.carbon.routes import router as carbon_router
+from app.api.v1.home import router as home_router
+
+app.include_router(carbon_router, prefix="/api/v1")
+app.include_router(home_router, prefix="/api/v1")
+
+from collections import Counter
+from datetime import datetime
+import asyncio
+import os
+
+import httpx
+from fastapi import HTTPException
+from pydantic import BaseModel
+
+from app.config.cities import CITIES, CITY_COORDS
 
 
-ELECTRICITY_MAPS_KEY = os.getenv("ELECTRICITY_MAPS_KEY") or os.getenv("ELECTRICITYMAPS_API_KEY")
+@app.get("/")
+def root():
+    return {"status": "GreenNeural backend running"}
+
 OPENWEATHER_API_KEY = os.getenv("OWM_KEY") or os.getenv("OPENWEATHER_API_KEY")
 
 GLOBAL_CITY_LIST = [
@@ -249,24 +257,6 @@ async def get_realtime_risk(city: str):
         "data_source": "baseline_estimate",
     }
 
-async def get_carbon_intensity(zone_code: str):
-    url = f"https://api.electricitymap.org/v3/carbon-intensity/latest?zone={zone_code}"
-    # httpx rejects None-valued headers when the API key is not configured.
-    # Omit the optional header in that case rather than passing None.
-    headers = {"auth-token": ELECTRICITY_MAPS_KEY} if ELECTRICITY_MAPS_KEY else {}
-
-    async with httpx.AsyncClient() as client:
-        r = await client.get(url, headers=headers)
-        data = r.json()
-        if r.status_code != 200:
-            error_msg = data.get("message", data.get("error", "unknown error"))
-            raise HTTPException(status_code=502, detail=f"Electricity Maps API error: {error_msg}")
-        if "carbonIntensity" not in data:
-            raise HTTPException(status_code=502, detail=f"Electricity Maps API returned unexpected response for zone {zone_code}")
-        return data["carbonIntensity"]
-
-
-
 class SciInput(BaseModel):
     energy_kwh: float
     intensity_gco2_per_kwh: float
@@ -413,82 +403,4 @@ async def climate_risk(layer: str, city: str):
         "layer_url": f"/tiles/{layer}/{city}/{{z}}/{{x}}/{{y}}.pbf",
         "summary_score": estimated_risk_score(city, layer),
         "data_source": "baseline_estimate",
-    }
-
-@app.get("/api/v1/carbon/intensity")
-async def carbon_intensity(provider: str, region: str):
-    provider = provider.lower()
-    supported = get_supported_regions(provider)
-
-    if region not in supported:
-        return {
-            "error": "Unsupported region",
-            "provider": provider,
-            "region": region,
-            "supported_regions": supported
-        }
-
-    grid_zone = CLOUD_REGION_MAP.get(provider, {}).get(region)
-    if not grid_zone:
-        return {
-            "provider": provider,
-            "region": region,
-            "intensity": None,
-            "intensity_gco2_per_kwh": None,
-            "status": "unsupported",
-            "message": "Carbon intensity data not available for this region",
-        }
-
-    try:
-        intensity = await get_carbon_intensity(grid_zone)
-    except Exception:
-        return {
-            "provider": provider,
-            "region": region,
-            "intensity": None,
-            "intensity_gco2_per_kwh": None,
-            "status": "unavailable",
-            "message": "Carbon intensity data not available for this region",
-        }
-
-    return {
-        "region": region,
-        "provider": provider,
-        "intensity_gco2_per_kwh": intensity,
-        "timestamp": datetime.utcnow().isoformat(),
-    }
-
-@app.get("/api/v1/carbon/cleanest-region")
-async def cleanest_region(provider: str = "aws"):
-    provider = provider.lower()
-    region_zones = CLOUD_REGION_MAP.get(provider)
-    if not region_zones:
-        raise HTTPException(status_code=404, detail=f"Unknown provider: {provider}")
-
-    intensities = []
-    for region_code, grid_zone in region_zones.items():
-        try:
-            intensity = await get_carbon_intensity(grid_zone)
-            intensities.append((region_code, intensity))
-        except Exception:
-            continue
-
-    if not intensities:
-        return {
-            "provider": provider,
-            "intensity": None,
-            "intensity_gco2_per_kwh": None,
-            "status": "unavailable",
-            "message": "Carbon intensity data not available for this provider",
-        }
-
-    intensities.sort(key=lambda x: x[1])
-
-    cleanest_zone, cleanest_value = intensities[0]
-
-    return {
-        "region": cleanest_zone,
-        "provider": provider,
-        "intensity_gco2_per_kwh": cleanest_value,
-        "ranked_regions": intensities
     }

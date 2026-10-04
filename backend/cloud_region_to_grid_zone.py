@@ -1,15 +1,9 @@
 """Maps cloud-provider regions to Electricity Maps grid-zone codes."""
 
+from app.api.v1.regions.aws import AWS_REGION_MAP
+
 CLOUD_REGION_MAP: dict[str, dict[str, str]] = {
-    "aws": {
-        "us-west-2": "US-PNW",
-        "us-west-1": "US-CAL-CISO",
-        "us-east-1": "US-MIDA-PJM",
-        "eu-west-1": "IE",
-        "eu-west-2": "GB",
-        "eu-central-1": "DE",
-        "eu-north-1": "SE",
-    },
+    "aws": AWS_REGION_MAP,
     "azure": {
         "eastus": "US-SOUTHEAST",
         "westus": "US-CAL-CISO",
