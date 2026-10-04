@@ -33,11 +33,6 @@ export default function RiskDataSourcesAccordion() {
           </li>
 
           <li>
-            <strong>Electricity Maps (Optional):</strong>  
-            Used for carbon intensity and energy‑related environmental metrics.
-          </li>
-
-          <li>
             <strong>GreenNeural Risk Engine:</strong>  
             Converts raw environmental data into Heat, Flood, and Air Quality risk scores (0–100).
           </li>

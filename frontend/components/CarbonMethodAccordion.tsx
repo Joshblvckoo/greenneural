@@ -16,17 +16,18 @@ export default function CarbonMethodAccordion() {
 
       <div className={`overflow-hidden transition-all duration-300 ${open ? "max-h-[600px] p-4" : "max-h-0 p-0"}`}>
         <p className="mb-3 text-gray-700 dark:text-gray-300">
-          GreenNeural retrieves real-time carbon intensity values using the Electricity Maps API. Each region provides a live estimate of grams of CO₂ emitted per kilowatt-hour of electricity produced.
+          GreenNeural combines regional carbon signals from the enabled grid-data providers. Availability and methodology vary by region; some regions use a static fallback estimate.
         </p>
 
         <ul className="ml-5 list-disc space-y-2 text-gray-700 dark:text-gray-300">
-          <li>Live carbon intensity (gCO₂/kWh)</li>
-          <li>Energy mix (renewables vs fossil)</li>
-          <li>Regional grid emissions</li>
+          <li>UK grid intensity from the UK Carbon Intensity API</li>
+          <li>US marginal emissions signals from WattTime</li>
+          <li>EU generation mix estimates from ENTSO-E</li>
+          <li>Static regional estimates where live data is unavailable</li>
         </ul>
 
         <p className="mt-3 text-gray-700 dark:text-gray-300">
-          If a region does not return live data, GreenNeural displays a fallback message instead of intensity values.
+          Values are reported in gCO₂/kWh where available. Marginal emissions signals and static estimates use different methodologies and should be compared with that context in mind.
         </p>
       </div>
     </div>

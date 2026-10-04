@@ -26,7 +26,7 @@ STATIC_INTENSITY = {
     "northamerica-northeast1": 130,
 
     # Default fallback
-    "default": 500
+    "default": 450
 }
 
 def get_static_intensity(region):

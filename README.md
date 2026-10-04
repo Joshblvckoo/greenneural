@@ -55,4 +55,4 @@ Build Command: pip install -r requirements.txt
 Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-Set `ELECTRICITY_MAPS_KEY` and `OWM_KEY` in Render environment variables. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.
+Set `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_API_KEY`, and `OWM_KEY` in Render environment variables as needed by the enabled carbon and climate-data providers. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.
