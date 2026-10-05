@@ -15,7 +15,7 @@ def map_aws_region(region):
     if region in US_REGION_MAP:
         return US_REGION_MAP[region]
 
-    if region in ["eu-north-1", "eu-central-1"]:
+    if region in ["eu-north-1", "eu-central-1", "eu-west-1"]:
         return "EU"
 
     return "STATIC"

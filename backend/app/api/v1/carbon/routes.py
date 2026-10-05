@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, HTTPException
 
 from app.api.v1.providers.uk_grid import get_uk_intensity
@@ -20,8 +21,8 @@ US_REGION_MAP = {
 }
 
 EU_REGION_MAP = {
-    "aws": {"eu-north-1", "eu-central-1"},
-    "azure": {"northeurope", "westeurope"},
+    "aws": {"eu-north-1", "eu-central-1", "eu-west-1"},
+    "azure": {"northeurope", "westeurope", "norwayeast"},
     "gcp": {"europe-west1", "europe-north1"},
 }
 
@@ -39,8 +40,7 @@ def resolve_grid(provider: str, region: str):
     raise HTTPException(400, "Unsupported provider")
 
 
-@router.get("/intensity")
-async def carbon_intensity(provider: str, region: str):
+async def get_carbon_intensity(provider: str, region: str) -> float | None:
     provider = provider.lower()
     normalized_region = region.lower()
     grid_zone = resolve_grid(provider, normalized_region)
@@ -61,9 +61,17 @@ async def carbon_intensity(provider: str, region: str):
 
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=502, detail="Carbon intensity provider request failed") from e
+    except httpx.HTTPError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="Carbon intensity provider request failed",
+        ) from error
+    return intensity
 
+
+@router.get("/intensity")
+async def carbon_intensity(provider: str, region: str):
+    intensity = await get_carbon_intensity(provider, region)
     return {
         "region": region,
         "provider": provider,

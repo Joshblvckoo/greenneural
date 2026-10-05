@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.api.v1.coverage import COVERAGE
+from app.api.v1.providers.cloud_health import compute_provider_health
 
 router = APIRouter(prefix="/home")
 
@@ -30,3 +31,8 @@ async def home_summary():
             "Historical carbon trends",
         ],
     }
+
+
+@router.get("/live")
+async def home_live():
+    return await compute_provider_health()

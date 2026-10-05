@@ -12,6 +12,7 @@ import {
 import CleanestRegionLeaderboard from "./CleanestRegionLeaderboard";
 import CoverageMap from "./CoverageMap";
 import GlobalCarbonSnapshot from "./GlobalCarbonSnapshot";
+import ProviderHealthWidget from "./ProviderHealthWidget";
 
 const comingSoon = [
   "Asia real-time grid coverage",
@@ -85,6 +86,9 @@ const HomePage: FC = () => (
     </section>
 
     <div className="bg-[#f7faf8] px-6 py-16 dark:bg-[#08130f] sm:py-20 lg:px-10">
+      <div className="mx-auto mb-5 max-w-7xl">
+        <ProviderHealthWidget />
+      </div>
       <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-2">
         <GlobalCarbonSnapshot />
         <CleanestRegionLeaderboard />

@@ -9,7 +9,7 @@ def map_azure_region(region):
     region = region.lower()
     uk_regions = ["uksouth", "ukwest"]
     us_regions = ["eastus", "westus", "centralus"]
-    eu_regions = ["northeurope", "westeurope"]
+    eu_regions = ["northeurope", "westeurope", "norwayeast"]
 
     if region.lower() in uk_regions:
         return "UK"

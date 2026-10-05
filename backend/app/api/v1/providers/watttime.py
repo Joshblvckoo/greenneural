@@ -65,6 +65,12 @@ async def watttime_get_moer(region: str) -> float | None:
             detail="WattTime MOER response was not valid JSON",
         ) from error
 
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=502,
+            detail="WattTime MOER response had an invalid shape",
+        )
+
     readings = data.get("data")
     if not isinstance(readings, list) or not readings:
         return None
@@ -76,6 +82,45 @@ async def watttime_get_moer(region: str) -> float | None:
             status_code=502,
             detail="WattTime MOER response contained an invalid reading",
         ) from error
+
+
+async def watttime_forecast(region: str) -> list[dict[str, str | float]]:
+    token = await watttime_get_token()
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.get(
+            "https://api.watttime.org/v3/signal-index",
+            headers={"Authorization": f"Bearer {token}"},
+            params={
+                "region": region,
+                "signal_type": "co2_moer",
+                "forecast": "true",
+            },
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="WattTime forecast request failed")
+
+    try:
+        readings = response.json()["data"]
+        if not isinstance(readings, list):
+            raise TypeError("Forecast data must be a list")
+        forecast = [
+            {
+                "timestamp": reading["timestamp"]
+                if "timestamp" in reading
+                else reading["point_time"],
+                "value": float(reading["value"]),
+            }
+            for reading in readings
+        ]
+    except (ValueError, KeyError, TypeError) as error:
+        raise HTTPException(
+            status_code=502,
+            detail="WattTime returned an invalid forecast response",
+        ) from error
+
+    return sorted(forecast, key=lambda point: point["timestamp"])
 
 
 async def get_watttime_intensity(region: str) -> float:
