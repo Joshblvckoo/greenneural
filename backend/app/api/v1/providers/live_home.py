@@ -2,36 +2,35 @@ import asyncio
 import math
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 import httpx
 from fastapi import HTTPException
 
+from app.config.grid_resolver import resolve_entsoe, resolve_watttime
 from app.config.settings import settings
-from app.api.v1.providers.entsoe import ENTSOE_ZONES, entsoe_live_signal
+from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES, entsoe_live_signal
 from app.api.v1.providers.uk_grid import uk_generation_mix, uk_signal
 from app.api.v1.providers.watttime import watttime_signal
-from app.api.v1.regions.aws import US_REGION_MAP as AWS_US_REGION_MAP
-from app.api.v1.regions.azure import US_REGION_MAP as AZURE_US_REGION_MAP
-from app.api.v1.regions.gcp import US_REGION_MAP as GCP_US_REGION_MAP
-
-US_REGION_MAP = {
-    "aws": AWS_US_REGION_MAP,
-    "azure": AZURE_US_REGION_MAP,
-    "gcp": GCP_US_REGION_MAP,
-}
 
 REGIONS = {
     "aws": [
-        "us-east-1", "us-west-2", "eu-north-1", "eu-west-1", "eu-west-2",
+        "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+        "eu-north-1", "eu-west-1", "eu-west-2",
+        "eu-west-3", "eu-central-1", "eu-central-2", "eu-south-1",
         "ap-south-1", "af-south-1",
     ],
     "azure": [
-        "eastus", "westus2", "norwayeast", "uksouth", "westeurope",
-        "indiacentral", "southafricanorth",
+        "eastus", "eastus2", "westus", "westus2", "centralus",
+        "southcentralus",
+        "norwayeast", "uksouth", "ukwest", "westeurope",
+        "northeurope", "germanywestcentral", "swedencentral", "italynorth",
+        "francecentral", "polandcentral", "indiacentral", "southafricanorth",
     ],
     "gcp": [
-        "us-central1", "us-east1", "europe-west1", "europe-west2",
+        "us-central1", "us-east1", "us-east4", "us-west1", "us-west2",
+        "europe-west1", "europe-west2",
+        "europe-west3", "europe-west4", "europe-west6", "europe-north1",
         "asia-south1", "me-west1",
     ],
 }
@@ -119,97 +118,312 @@ def _combined_status(signals: list[dict[str, Any]]) -> str:
     return "unavailable"
 
 
-async def _get_region_signal(provider: str, region: str) -> dict[str, Any]:
-    request_started = time.perf_counter()
-    grid_key: str | None = None
-    source_name: str | None = None
-    try:
-        if region in US_REGION_MAP[provider]:
-            grid = US_REGION_MAP[provider][region]
-            grid_key = f"watttime:{grid}"
-            source_name = "WattTime"
-            signal = await watttime_signal(grid)
-        elif region in {"eu-west-2", "uksouth", "ukwest", "europe-west2"}:
-            grid_key = "uk-grid:GB"
-            source_name = "UK Carbon Intensity API"
-            signal = await uk_signal()
-        elif region in ENTSOE_ZONES:
-            zone = ENTSOE_ZONES[region]
-            grid_key = f"entsoe:{zone}"
-            source_name = "ENTSO-E"
-            signal = await entsoe_live_signal(zone)
-        else:
-            return {
-                "provider": provider,
-                "region": region,
-                "intensity": None,
-                "source": None,
-                "_source_name": None,
-                "updated_at": None,
-                "status": "unavailable",
-                "latency_ms": None,
-                "error": "No live grid source is configured for this region.",
-            }
-    except HTTPException as error:
+def build_provider_health(
+    provider: str,
+    region_signals: list[dict[str, Any]],
+) -> dict[str, Any]:
+    checked_signals = [
+        signal for signal in region_signals
+        if signal.get("provider") == provider
+    ]
+    available = [
+        signal
+        for signal in checked_signals
+        if signal.get("intensity") is not None
+        and signal.get("status") in {"live", "delayed", "stale", "forecast"}
+    ]
+    checked = len(checked_signals)
+    if not available:
         return {
-            "provider": provider,
-            "region": region,
-            "intensity": None,
-            "source": source_name,
-            "_source_name": source_name,
+            "average_intensity": None,
+            "trend": "unknown",
+            "delta_10m": None,
+            "cleanest_region": None,
             "updated_at": None,
             "status": "unavailable",
-            "latency_ms": round((time.perf_counter() - request_started) * 1000, 2),
-            "_grid_key": grid_key,
-            "error": str(error.detail),
-        }
-    except httpx.HTTPError as error:
-        return {
-            "provider": provider,
-            "region": region,
-            "intensity": None,
-            "source": source_name,
-            "_source_name": source_name,
-            "updated_at": None,
-            "status": "unavailable",
-            "latency_ms": round((time.perf_counter() - request_started) * 1000, 2),
-            "_grid_key": grid_key,
-            "error": type(error).__name__,
+            "sources": [],
+            "latency_ms": None,
+            "regions_available": 0,
+            "regions_checked": checked,
         }
 
-    updated_at = signal.get("updated_at")
-    latency_ms = round((time.perf_counter() - request_started) * 1000, 2)
-    source_status = signal.get("status")
-    result = {
-        "provider": provider,
-        "region": region,
-        "intensity": float(signal["value"]),
-        "source": signal["source"],
-        "updated_at": updated_at,
-        "status": compute_status(
-            updated_at,
-            forecast=source_status == "forecast",
+    average = round(
+        sum(float(signal["intensity"]) for signal in available) / len(available)
+    )
+    deltas = [
+        float(signal["delta_10m"])
+        for signal in available
+        if signal.get("delta_10m") is not None
+    ]
+    delta_10m = round(sum(deltas) / len(deltas), 2) if deltas else None
+    best = min(available, key=lambda signal: float(signal["intensity"]))
+    updated_times = [
+        timestamp
+        for signal in available
+        if (timestamp := _parse_timestamp(signal.get("updated_at"))) is not None
+    ]
+    latencies = [
+        float(signal["latency_ms"])
+        for signal in available
+        if signal.get("latency_ms") is not None
+    ]
+
+    return {
+        "average_intensity": average,
+        "trend": _trend(delta_10m),
+        "delta_10m": delta_10m,
+        "cleanest_region": {
+            "region": best["region"],
+            "intensity": best["intensity"],
+            "source": best.get("source"),
+            "updated_at": best.get("updated_at"),
+            "status": best["status"],
+            "latency_ms": best.get("latency_ms"),
+        },
+        "updated_at": min(updated_times).isoformat() if updated_times else None,
+        "status": (
+            "stale"
+            if any(signal["status"] != "live" for signal in available)
+            else "live"
         ),
-        "latency_ms": latency_ms,
-        "_grid_key": grid_key,
-        "_source_name": source_name,
+        "sources": sorted({
+            signal["source"]
+            for signal in available
+            if signal.get("source")
+        }),
+        "latency_ms": (
+            round(sum(latencies) / len(latencies), 2) if latencies else None
+        ),
+        "regions_available": len(available),
+        "regions_checked": checked,
     }
-    if not math.isfinite(result["intensity"]):
+
+
+def _unique_grid_signals(
+    region_signals: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    observed = [
+        signal
+        for signal in region_signals
+        if signal.get("intensity") is not None
+        and signal.get("status") in {"live", "delayed", "stale", "forecast"}
+    ]
+    unique_grids: dict[str, dict[str, Any]] = {}
+    for signal in observed:
+        grid_key = signal.get(
+            "_grid_key",
+            f'{signal["provider"]}/{signal["region"]}',
+        )
+        if grid_key == "uk-grid:GB":
+            grid_key = f'entsoe:{ENTSOE_ZONE_CODES["GB"]}'
+        existing = unique_grids.get(grid_key)
+        current_timestamp = _parse_timestamp(signal.get("updated_at"))
+        existing_timestamp = (
+            _parse_timestamp(existing.get("updated_at")) if existing else None
+        )
+        if existing is None or (
+            current_timestamp is not None
+            and (existing_timestamp is None or current_timestamp > existing_timestamp)
+        ):
+            unique_grids[grid_key] = signal
+    return list(unique_grids.values())
+
+
+def build_global_signal(region_signals: list[dict[str, Any]]) -> dict[str, Any]:
+    global_observed = _unique_grid_signals(region_signals)
+    expected_grids = {
+        (
+            f'entsoe:{ENTSOE_ZONE_CODES["GB"]}'
+            if grid_key == "uk-grid:GB"
+            else grid_key
+        )
+        for signal in region_signals
+        for grid_key in signal.get(
+            "_grid_keys_expected",
+            [signal["_grid_key"]] if signal.get("_grid_key") else [],
+        )
+    }
+    if global_observed:
+        intensity = round(
+            sum(float(signal["intensity"]) for signal in global_observed)
+            / len(global_observed),
+            2,
+        )
+        deltas = [
+            float(signal["delta_10m"])
+            for signal in global_observed
+            if signal.get("delta_10m") is not None
+        ]
+        delta_10m = round(sum(deltas) / len(deltas), 2) if deltas else None
+        sources = sorted({
+            signal["source"]
+            for signal in global_observed
+            if signal.get("source")
+        })
+        latencies = [
+            float(signal["latency_ms"])
+            for signal in global_observed
+            if signal.get("latency_ms") is not None
+        ]
+        timestamps = [
+            timestamp
+            for signal in global_observed
+            if (timestamp := _parse_timestamp(signal.get("updated_at"))) is not None
+        ]
+        status = _combined_status(global_observed)
+        updated_at = min(timestamps).isoformat() if timestamps else None
+    else:
+        intensity = None
+        delta_10m = None
+        sources = []
+        latencies = []
+        status = "unavailable"
+        updated_at = None
+
+    regions_included = len(global_observed)
+    regions_expected = len(expected_grids)
+    partial = regions_included < regions_expected
+    return {
+        "intensity": intensity,
+        "delta_10m": delta_10m,
+        "trend": _trend(delta_10m),
+        "sources": sources,
+        "latency_ms": max(latencies) if latencies else None,
+        "updated_at": updated_at,
+        "status": status,
+        "regions_included": regions_included,
+        "regions_expected": regions_expected,
+        "partial": partial,
+        "methodology": (
+            "No live grid readings are currently available."
+            if status == "unavailable"
+            else (
+                f"Partial snapshot: {regions_included} of "
+                f"{regions_expected} mapped grid signals are available. "
+                "Each unique grid signal is weighted equally; provider "
+                "methodologies vary."
+                if partial
+                else "Mean of unique mapped grid signals with equal weight; "
+                "provider methodologies vary."
+            )
+        ),
+    }
+
+
+async def _get_region_signal(provider: str, region: str) -> dict[str, Any]:
+    request_started = time.perf_counter()
+    provider_key = provider.lower()
+    region_key = region.lower()
+    candidates: list[
+        tuple[str, str, Callable[[], Awaitable[dict[str, Any] | None]]]
+    ] = []
+
+    if (ba := resolve_watttime(provider_key, region_key)) is not None:
+        candidates.append(
+            ("WattTime", f"watttime:{ba}", lambda: watttime_signal(ba))
+        )
+    if (zone_code := resolve_entsoe(provider_key, region_key)) is not None:
+        zone = ENTSOE_ZONE_CODES[zone_code]
+        candidates.append(
+            ("ENTSO-E", f"entsoe:{zone}", lambda: entsoe_live_signal(zone))
+        )
+    if region_key in {"eu-west-2", "uksouth", "ukwest", "europe-west2"}:
+        candidates.append(
+            ("UK Carbon Intensity API", "uk-grid:GB", uk_signal)
+        )
+
+    if not candidates:
         return {
             "provider": provider,
             "region": region,
             "intensity": None,
             "source": None,
+            "_source_name": None,
             "updated_at": None,
             "status": "unavailable",
-            "latency_ms": latency_ms,
+            "latency_ms": None,
+            "error": "No live grid source is configured for this region.",
+        }
+
+    expected_grid_keys = [candidate[1] for candidate in candidates]
+    attempts: list[str] = []
+    source_errors: dict[str, str] = {}
+    source_latencies: dict[str, float] = {}
+    for source_name, grid_key, fetch_signal in candidates:
+        attempts.append(source_name)
+        attempt_started = time.perf_counter()
+        try:
+            signal = await fetch_signal()
+        except HTTPException as error:
+            source_errors[source_name] = str(error.detail)
+            signal = None
+        except httpx.HTTPError as error:
+            source_errors[source_name] = type(error).__name__
+            signal = None
+        finally:
+            source_latencies[source_name] = round(
+                (time.perf_counter() - attempt_started) * 1000, 2
+            )
+
+        if signal is None:
+            source_errors.setdefault(
+                source_name,
+                f"{source_name} returned no intensity reading.",
+            )
+            continue
+
+        try:
+            intensity = float(signal["value"])
+        except (KeyError, TypeError, ValueError):
+            source_errors[source_name] = (
+                f"{source_name} returned an invalid intensity reading."
+            )
+            continue
+        if not math.isfinite(intensity):
+            source_errors[source_name] = (
+                f"{source_name} returned an invalid intensity reading."
+            )
+            continue
+
+        updated_at = signal.get("updated_at")
+        return {
+            "provider": provider,
+            "region": region,
+            "intensity": intensity,
+            "source": signal.get("source", source_name),
+            "updated_at": updated_at,
+            "status": compute_status(
+                updated_at,
+                forecast=signal.get("status") == "forecast",
+            ),
+            "latency_ms": round(
+                (time.perf_counter() - request_started) * 1000, 2
+            ),
             "_grid_key": grid_key,
             "_source_name": source_name,
-            "error": "The live source returned an invalid intensity value.",
+            "_sources_attempted": attempts,
+            "_source_errors": source_errors,
+            "_source_latencies": source_latencies,
+            "_grid_keys_expected": expected_grid_keys,
+            **({"mix": signal["mix"]} if "mix" in signal else {}),
         }
-    if "mix" in signal:
-        result["mix"] = signal["mix"]
-    return result
+
+    return {
+        "provider": provider,
+        "region": region,
+        "intensity": None,
+        "source": None,
+        "updated_at": None,
+        "status": "unavailable",
+        "latency_ms": round((time.perf_counter() - request_started) * 1000, 2),
+        "_sources_attempted": attempts,
+        "_source_errors": source_errors,
+        "_source_latencies": source_latencies,
+        "_grid_keys_expected": expected_grid_keys,
+        "error": "; ".join(
+            f"{source}: {message}" for source, message in source_errors.items()
+        ),
+    }
 
 
 async def _get_generation_mix(regions: list[dict[str, Any]]) -> dict[str, Any]:
@@ -283,6 +497,13 @@ async def _build_live_home() -> dict[str, Any]:
             signal for signal in signals
             if signal.get("_source_name") == source_name
         ]
+        attempted_signals = [
+            signal for signal in signals
+            if source_name in signal.get(
+                "_sources_attempted",
+                [signal.get("_source_name")],
+            )
+        ]
         source_readings = [
             signal for signal in source_signals
             if signal["intensity"] is not None
@@ -295,11 +516,23 @@ async def _build_live_home() -> dict[str, Any]:
         errors = sorted({
             signal["error"] for signal in source_signals
             if signal.get("error")
+        } | {
+            error
+            for signal in signals
+            if (error := signal.get("_source_errors", {}).get(source_name))
         })
         source_latencies = [
-            signal["latency_ms"] for signal in source_signals
-            if signal.get("latency_ms") is not None
+            latency
+            for signal in attempted_signals
+            if (
+                latency := signal.get("_source_latencies", {}).get(source_name)
+            ) is not None
         ]
+        if not source_latencies:
+            source_latencies = [
+                signal["latency_ms"] for signal in source_signals
+                if signal.get("latency_ms") is not None
+            ]
         latest_timestamp = max(timestamps) if timestamps else None
         source_health[source_name] = {
             "status": (
@@ -310,7 +543,7 @@ async def _build_live_home() -> dict[str, Any]:
             "configured": not missing_variables,
             "missing_configuration": missing_variables,
             "regions_available": len(source_readings),
-            "regions_checked": len(source_signals),
+            "regions_checked": len(attempted_signals or source_signals),
             "updated_at": latest_timestamp.isoformat() if latest_timestamp else None,
             "latency_ms": (
                 round(sum(source_latencies) / len(source_latencies), 2)
@@ -321,7 +554,9 @@ async def _build_live_home() -> dict[str, Any]:
         }
 
     unconfigured_regions = [
-        signal for signal in signals if not signal.get("_source_name")
+        signal for signal in signals
+        if not signal.get("_source_name")
+        and not signal.get("_sources_attempted")
     ]
     if unconfigured_regions:
         source_health["Unconfigured regions"] = {
@@ -349,58 +584,8 @@ async def _build_live_home() -> dict[str, Any]:
         signal["delta_10m"] = delta
         signal["trend"] = _trend(delta)
 
-    unique_grids: dict[str, dict[str, Any]] = {}
-    for signal in observed:
-        grid_key = signal.get("_grid_key", f'{signal["provider"]}/{signal["region"]}')
-        existing = unique_grids.get(grid_key)
-        current_timestamp = _parse_timestamp(signal["updated_at"])
-        existing_timestamp = _parse_timestamp(existing["updated_at"]) if existing else None
-        if existing is None or (
-            current_timestamp is not None
-            and (existing_timestamp is None or current_timestamp > existing_timestamp)
-        ):
-            unique_grids[grid_key] = signal
-    global_observed = list(unique_grids.values())
-    expected_grids = {
-        signal["_grid_key"]
-        for signal in signals
-        if signal.get("_grid_key")
-    }
-
-    if global_observed:
-        global_intensity = round(
-            sum(signal["intensity"] for signal in global_observed)
-            / len(global_observed),
-            2,
-        )
-        deltas = [
-            signal["delta_10m"]
-            for signal in global_observed
-            if signal["delta_10m"] is not None
-        ]
-        global_delta = round(sum(deltas) / len(deltas), 2) if deltas else None
-        source_names = sorted({
-            signal["source"] for signal in global_observed if signal["source"]
-        })
-        source_latencies = [
-            signal["latency_ms"]
-            for signal in global_observed
-            if signal.get("latency_ms") is not None
-        ]
-        global_latency = max(source_latencies) if source_latencies else None
-        timestamps = [
-            timestamp for signal in global_observed
-            if (timestamp := _parse_timestamp(signal["updated_at"])) is not None
-        ]
-        signal_status = _combined_status(global_observed)
-        updated_at = min(timestamps).isoformat() if timestamps else None
-    else:
-        global_intensity = None
-        global_delta = None
-        source_names = []
-        global_latency = None
-        updated_at = None
-        signal_status = "unavailable"
+    global_signal = build_global_signal(signals)
+    global_observed = _unique_grid_signals(signals)
 
     cleanest_regions = sorted(
         (signal for signal in global_observed if signal["status"] in {"live", "delayed"}),
@@ -413,104 +598,17 @@ async def _build_live_home() -> dict[str, Any]:
 
     provider_health: dict[str, Any] = {}
     for provider in REGIONS:
-        provider_observed = [
+        provider_signals = [
             signal for signal in signals
             if signal["provider"] == provider
-            and signal["status"] in {"live", "delayed", "stale", "forecast"}
-            and signal["intensity"] is not None
         ]
-        if provider_observed:
-            average = round(
-                sum(signal["intensity"] for signal in provider_observed)
-                / len(provider_observed)
-            )
-            best = min(provider_observed, key=lambda signal: signal["intensity"])
-            deltas = [
-                signal["delta_10m"] for signal in provider_observed
-                if signal.get("delta_10m") is not None
-            ]
-            provider_delta = round(sum(deltas) / len(deltas), 2) if deltas else None
-            provider_status = _combined_status(provider_observed)
-            provider_sources = sorted({
-                signal["source"]
-                for signal in provider_observed
-                if signal.get("source")
-            })
-            provider_latencies = [
-                signal["latency_ms"]
-                for signal in provider_observed
-                if signal.get("latency_ms") is not None
-            ]
-            provider_latency = (
-                round(sum(provider_latencies) / len(provider_latencies), 2)
-                if provider_latencies
-                else None
-            )
-            updated_times = [
-                timestamp for signal in provider_observed
-                if (timestamp := _parse_timestamp(signal["updated_at"])) is not None
-            ]
-            provider_updated_at = min(updated_times).isoformat() if updated_times else None
-            cleanest = {
-                "region": best["region"],
-                "intensity": best["intensity"],
-                "source": best["source"],
-                "updated_at": best["updated_at"],
-                "status": best["status"],
-                "latency_ms": best.get("latency_ms"),
-            }
-        else:
-            provider_health[provider] = {
-                "average_intensity": None,
-                "trend": "unknown",
-                "delta_10m": None,
-                "cleanest_region": None,
-                "updated_at": None,
-                "status": "unavailable",
-                "sources": [],
-                "latency_ms": None,
-                "regions_available": 0,
-                "regions_checked": len(REGIONS[provider]),
-            }
-            continue
-
-        provider_health[provider] = {
-            "average_intensity": average,
-            "trend": _trend(provider_delta),
-            "delta_10m": provider_delta,
-            "cleanest_region": cleanest,
-            "updated_at": provider_updated_at,
-            "status": provider_status,
-            "sources": provider_sources,
-            "latency_ms": provider_latency,
-            "regions_available": len(provider_observed),
-            "regions_checked": len(REGIONS[provider]),
-        }
+        provider_health[provider] = build_provider_health(
+            provider,
+            provider_signals,
+        )
 
     return {
-        "global_signal": {
-            "intensity": global_intensity,
-            "delta_10m": global_delta,
-            "trend": _trend(global_delta),
-            "sources": source_names,
-            "latency_ms": global_latency,
-            "updated_at": updated_at,
-            "status": signal_status,
-            "regions_included": len(global_observed),
-            "regions_expected": len(expected_grids),
-            "partial": len(global_observed) < len(expected_grids),
-            "methodology": (
-                "No live grid readings are currently available."
-                if signal_status == "unavailable"
-                else (
-                    f"Partial snapshot: {len(global_observed)} of "
-                    f"{len(expected_grids)} mapped grid signals are available. "
-                    "Provider methodologies vary."
-                    if len(global_observed) < len(expected_grids)
-                    else "Mean of unique mapped grid signals; provider methodologies vary."
-                )
-            ),
-        },
+        "global_signal": global_signal,
         "cleanest_regions": cleanest_regions,
         "provider_health": provider_health,
         "source_health": source_health,

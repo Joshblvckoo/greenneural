@@ -44,6 +44,14 @@ details. The 10-minute trend becomes available after the backend has collected
 enough in-process readings; it is marked `unknown` while warming up and resets
 when the backend process restarts.
 
+`backend/app/config/grid_resolver.py` provides the shared provider/region
+resolvers for the provider-specific maps in `entsoe_regions.py` and
+`watttime_regions.py`. ENTSO-E maps European regions and WattTime maps supported
+US balancing authorities. Live signals try WattTime, then ENTSO-E, then the UK
+Carbon Intensity API for configured GB regions. Regions without a matching
+source remain unavailable; unsupported regions and aliases are not assigned
+another region's grid.
+
 ### Frontend
 
 ```powershell
@@ -63,16 +71,16 @@ Create a Vercel project from this repository with **Root Directory** set to `fro
 Vercel will use `npm install` and `npm run build` from that directory. Set:
 
 ```text
-NEXT_PUBLIC_API_URL=https://<your-render-service>.onrender.com
+NEXT_PUBLIC_API_URL=https://greenneuralbackend.up.railway.app
 ```
 
-### Render
+### Railway
 
-Create a Render Web Service with **Root Directory** set to `backend`.
+Create a Railway service with its root directory set to `backend`.
 
 ```text
 Build Command: pip install -r requirements.txt
 Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-Set `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_API_KEY`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Render environment variables as needed by the enabled providers. The backend reads configuration directly from the process environment and never loads `.env` files. `GET /debug/env` reports only whether the WattTime and ENTSO-E variables are set; it deliberately never returns their values. The homepage source diagnostics report missing variable names and safe provider errors. The Pro time-to-clean forecast endpoint verifies signed-in Supabase access tokens using the latter two settings. WattTime, UK grid, and ENTSO-E sources are used where configured; any unavailable provider signals are surfaced as unavailable rather than presented as live. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.
+Set `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_API_KEY`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Railway variables as needed by the enabled providers. The backend reads configuration directly from the process environment and never loads `.env` files. `GET /debug/env` reports only whether the WattTime and ENTSO-E variables are set; it deliberately never returns their values. The homepage source diagnostics report missing variable names and safe provider errors. The Pro time-to-clean forecast endpoint verifies signed-in Supabase access tokens using the latter two settings. WattTime, UK grid, and ENTSO-E sources are used where configured; any unavailable provider signals are surfaced as unavailable rather than presented as live. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.

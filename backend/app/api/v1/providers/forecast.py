@@ -6,28 +6,14 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
+from app.config.grid_resolver import resolve_entsoe, resolve_watttime
+from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES
 from app.api.v1.providers.entsoe import (
-    ENTSOE_ZONES,
     entsoe_forecast as fetch_entsoe_forecast,
-    get_entsoe_intensity,
+    entsoe_intensity,
 )
 from app.api.v1.providers.uk_grid import get_uk_intensity, uk_forecast
 from app.api.v1.providers.watttime import watttime_forecast, watttime_get_moer
-from app.api.v1.regions.aws import US_REGION_MAP as AWS_US_REGION_MAP
-from app.api.v1.regions.azure import US_REGION_MAP as AZURE_US_REGION_MAP
-from app.api.v1.regions.gcp import US_REGION_MAP as GCP_US_REGION_MAP
-
-US_REGION_MAP = {
-    "aws": AWS_US_REGION_MAP,
-    "azure": AZURE_US_REGION_MAP,
-    "gcp": GCP_US_REGION_MAP,
-}
-
-EU_REGION_MAP = {
-    "aws": {"eu-north-1", "eu-central-1", "eu-west-1"},
-    "azure": {"northeurope", "westeurope", "norwayeast"},
-    "gcp": {"europe-west1", "europe-north1"},
-}
 
 UK_REGION_MAP = {
     "aws": {"eu-west-2"},
@@ -79,20 +65,22 @@ def _future_forecast_points(series: list[dict[str, Any]]) -> list[dict[str, Any]
     return sorted(future_points, key=lambda point: point["timestamp"])
 
 
-async def entsoe_forecast(region: str) -> list[dict[str, Any]]:
-    zone = ENTSOE_ZONES.get(region.lower())
-    if not zone:
+async def entsoe_forecast(provider: str, region: str) -> list[dict[str, Any]]:
+    zone_code = resolve_entsoe(provider, region)
+    if not zone_code:
         raise HTTPException(
             status_code=400,
-            detail=f"No ENTSO-E bidding zone is configured for region '{region}'",
+            detail=(
+                "No ENTSO-E bidding zone is configured for "
+                f"{provider}/{region}"
+            ),
         )
-    return await fetch_entsoe_forecast(zone)
+    return await fetch_entsoe_forecast(ENTSOE_ZONE_CODES[zone_code])
 
 
 async def _forecast_target(provider: str, region: str) -> dict[str, Any]:
     try:
-        if region in US_REGION_MAP.get(provider, {}):
-            ba = US_REGION_MAP[provider][region]
+        if (ba := resolve_watttime(provider, region)) is not None:
             current, series = await asyncio.gather(
                 watttime_get_moer(ba),
                 watttime_forecast(ba),
@@ -102,10 +90,11 @@ async def _forecast_target(provider: str, region: str) -> dict[str, Any]:
                 get_uk_intensity(),
                 uk_forecast(),
             )
-        elif region in EU_REGION_MAP.get(provider, set()):
+        elif (zone_code := resolve_entsoe(provider, region)) is not None:
+            zone = ENTSOE_ZONE_CODES[zone_code]
             current, series = await asyncio.gather(
-                get_entsoe_intensity(region),
-                entsoe_forecast(region),
+                entsoe_intensity(zone),
+                fetch_entsoe_forecast(zone),
             )
         else:
             raise HTTPException(

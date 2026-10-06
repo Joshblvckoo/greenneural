@@ -5,68 +5,63 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.v1.providers.uk_grid import get_uk_intensity
 from app.api.v1.providers.watttime import watttime_get_moer
+from app.config.grid_resolver import resolve_entsoe, resolve_watttime
+from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES
 from app.api.v1.providers.entsoe import get_entsoe_intensity
-from app.api.v1.providers.static import get_static_intensity
-
-from app.api.v1.regions.aws import US_REGION_MAP as AWS_US_REGION_MAP, map_aws_region
-from app.api.v1.regions.azure import US_REGION_MAP as AZURE_US_REGION_MAP, map_azure_region
-from app.api.v1.regions.gcp import US_REGION_MAP as GCP_US_REGION_MAP, map_gcp_region
 
 router = APIRouter(prefix="/carbon")
 
-US_REGION_MAP = {
-    "aws": AWS_US_REGION_MAP,
-    "azure": AZURE_US_REGION_MAP,
-    "gcp": GCP_US_REGION_MAP,
+UK_REGION_MAP = {
+    "aws": {"eu-west-2"},
+    "azure": {"uksouth", "ukwest"},
+    "gcp": {"europe-west2"},
 }
-
-EU_REGION_MAP = {
-    "aws": {"eu-north-1", "eu-central-1", "eu-west-1"},
-    "azure": {"northeurope", "westeurope", "norwayeast"},
-    "gcp": {"europe-west1", "europe-north1"},
-}
-
-
-def resolve_grid(provider: str, region: str):
-    provider = provider.lower()
-
-    if provider == "aws":
-        return map_aws_region(region)
-    if provider == "azure":
-        return map_azure_region(region)
-    if provider == "gcp":
-        return map_gcp_region(region)
-
-    raise HTTPException(400, "Unsupported provider")
 
 
 async def get_carbon_intensity(provider: str, region: str) -> float | None:
     provider = provider.lower()
     normalized_region = region.lower()
-    grid_zone = resolve_grid(provider, normalized_region)
+    candidates = []
 
-    try:
-        if provider in US_REGION_MAP and normalized_region in US_REGION_MAP[provider]:
-            ba = US_REGION_MAP[provider][normalized_region]
-            intensity = await watttime_get_moer(ba)
-        elif grid_zone == "UK":
-            intensity = await get_uk_intensity()
-        elif (
-            provider in EU_REGION_MAP
-            and normalized_region in EU_REGION_MAP[provider]
-        ):
-            intensity = await get_entsoe_intensity(normalized_region)
-        else:
-            intensity = get_static_intensity(normalized_region)
+    if (ba := resolve_watttime(provider, normalized_region)) is not None:
+        candidates.append(("WattTime", lambda: watttime_get_moer(ba)))
+    if (zone_code := resolve_entsoe(provider, normalized_region)) is not None:
+        candidates.append(
+            (
+                "ENTSO-E",
+                lambda: get_entsoe_intensity(ENTSOE_ZONE_CODES[zone_code]),
+            )
+        )
+    if normalized_region in UK_REGION_MAP.get(provider, set()):
+        candidates.append(("UK Carbon Intensity API", get_uk_intensity))
 
-    except HTTPException:
-        raise
-    except httpx.HTTPError as error:
+    if not candidates:
         raise HTTPException(
-            status_code=502,
-            detail="Carbon intensity provider request failed",
-        ) from error
-    return intensity
+            status_code=503,
+            detail=(
+                "No live carbon intensity source is configured for "
+                f"{provider}/{normalized_region}."
+            ),
+        )
+
+    errors = []
+    for source_name, fetch_intensity in candidates:
+        try:
+            intensity = await fetch_intensity()
+        except HTTPException as error:
+            errors.append(f"{source_name}: {error.detail}")
+            continue
+        except httpx.HTTPError as error:
+            errors.append(f"{source_name}: {type(error).__name__}")
+            continue
+        if intensity is not None:
+            return float(intensity)
+        errors.append(f"{source_name}: no intensity reading returned")
+
+    raise HTTPException(
+        status_code=502,
+        detail="All configured carbon intensity sources failed: " + "; ".join(errors),
+    )
 
 
 @router.get("/intensity")

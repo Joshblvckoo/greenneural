@@ -9,6 +9,19 @@ from app.config.settings import settings
 
 ENTSOE_API_URL = "https://transparency.entsoe.eu/api"
 
+ENTSOE_ZONE_CODES = {
+    "IE": "10YIE-1001A00010",
+    "GB": "10YGB----------A",
+    "DE_LU": "10Y1001A1001A63L",
+    "SE3": "10Y1001A1001A46L",
+    "IT_NORTH": "10Y1001A1001A73I",
+    "PL": "10YPL-AREA-----S",
+    "DK1": "10YDK-1--------W",
+    "FR": "10YFR-RTE------C",
+    "NL": "10YNL----------L",
+    "CH": "10YCH-SWISSGRIDZ",
+}
+
 ENTSOE_ZONES = {
     "eu-north-1": "10YFI-1--------U",
     "eu-central-1": "10YDE-1--------W",

@@ -4,8 +4,12 @@ from unittest.mock import AsyncMock, patch
 
 from fastapi import HTTPException
 
-from app.config.settings import settings
+from app.config.entsoe_regions import get_entsoe_zone
+from app.config.grid_resolver import resolve_entsoe, resolve_watttime
+from app.config.watttime_regions import get_wattime_ba
 from app.api.v1.providers import live_home
+from app.api.v1.providers import forecast
+from app.api.v1.carbon import routes as carbon_routes
 from app.api.v1.providers.entsoe import _fetch_generation_xml
 from app.api.v1.providers.watttime import watttime_get_token
 from app.main import debug_env
@@ -30,6 +34,137 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
 
     def test_trend_is_unknown_without_enough_history(self):
         self.assertEqual(live_home._trend(None), "unknown")
+
+    def test_provider_health_summarizes_regions_and_history_trend(self):
+        health = live_home.build_provider_health(
+            "aws",
+            [
+                {
+                    "provider": "aws",
+                    "region": "us-east-1",
+                    "intensity": 110.0,
+                    "status": "live",
+                    "delta_10m": -10.0,
+                    "source": "WattTime",
+                    "updated_at": "2026-10-06T11:50:00+00:00",
+                    "latency_ms": 10.0,
+                },
+                {
+                    "provider": "aws",
+                    "region": "eu-west-2",
+                    "intensity": 90.0,
+                    "status": "delayed",
+                    "delta_10m": -6.0,
+                    "source": "UK Carbon Intensity API",
+                    "updated_at": "2026-10-06T11:49:00+00:00",
+                    "latency_ms": 20.0,
+                },
+                {
+                    "provider": "aws",
+                    "region": "ap-south-1",
+                    "intensity": None,
+                    "status": "unavailable",
+                },
+                {
+                    "provider": "gcp",
+                    "region": "us-central1",
+                    "intensity": 1.0,
+                    "status": "live",
+                },
+            ],
+        )
+
+        self.assertEqual(health["average_intensity"], 100)
+        self.assertEqual(health["trend"], "down")
+        self.assertEqual(health["delta_10m"], -8.0)
+        self.assertEqual(health["status"], "stale")
+        self.assertEqual(health["regions_available"], 2)
+        self.assertEqual(health["regions_checked"], 3)
+        self.assertEqual(health["cleanest_region"]["region"], "eu-west-2")
+        self.assertEqual(health["latency_ms"], 15.0)
+
+    def test_provider_health_is_unavailable_without_valid_region_readings(self):
+        health = live_home.build_provider_health(
+            "gcp",
+            [
+                {
+                    "provider": "gcp",
+                    "region": "asia-south1",
+                    "intensity": None,
+                    "status": "unavailable",
+                }
+            ],
+        )
+
+        self.assertEqual(health["average_intensity"], None)
+        self.assertEqual(health["trend"], "unknown")
+        self.assertIsNone(health["delta_10m"])
+        self.assertEqual(health["status"], "unavailable")
+        self.assertEqual(health["regions_available"], 0)
+        self.assertEqual(health["regions_checked"], 1)
+        self.assertIsNone(health["cleanest_region"])
+
+    def test_global_signal_deduplicates_grid_aliases_and_counts_expected_grids(self):
+        signal = live_home.build_global_signal(
+            [
+                {
+                    "provider": "aws",
+                    "region": "eu-west-2",
+                    "intensity": 100.0,
+                    "source": "ENTSO-E",
+                    "updated_at": "2026-10-06T11:00:00+00:00",
+                    "status": "live",
+                    "_grid_key": "entsoe:10YGB----------A",
+                    "_grid_keys_expected": [
+                        "entsoe:10YGB----------A",
+                        "uk-grid:GB",
+                    ],
+                },
+                {
+                    "provider": "gcp",
+                    "region": "europe-west2",
+                    "intensity": 130.0,
+                    "source": "UK Carbon Intensity API",
+                    "updated_at": "2026-10-06T11:01:00+00:00",
+                    "status": "live",
+                    "_grid_key": "uk-grid:GB",
+                    "_grid_keys_expected": ["uk-grid:GB"],
+                },
+                {
+                    "provider": "aws",
+                    "region": "us-east-1",
+                    "intensity": None,
+                    "status": "unavailable",
+                    "_grid_keys_expected": ["watttime:PJM_ROANOKE"],
+                },
+            ]
+        )
+
+        self.assertEqual(signal["intensity"], 130.0)
+        self.assertEqual(signal["regions_included"], 1)
+        self.assertEqual(signal["regions_expected"], 2)
+        self.assertTrue(signal["partial"])
+        self.assertEqual(signal["sources"], ["UK Carbon Intensity API"])
+
+    def test_entsoe_region_mappings_are_provider_specific_and_case_insensitive(self):
+        self.assertEqual(get_entsoe_zone("aws", "eu-west-3"), "FR")
+        self.assertEqual(get_entsoe_zone("azure", "GermanyWestCentral"), "DE_LU")
+        self.assertEqual(get_entsoe_zone("gcp", "europe-west6"), "CH")
+        self.assertEqual(resolve_entsoe("aws", "eu-west-1"), "IE")
+        self.assertEqual(resolve_entsoe("aws", "eu-central-2"), "CH")
+        self.assertEqual(resolve_entsoe("azure", "polandcentral"), "PL")
+        self.assertIsNone(get_entsoe_zone("aws", "us-east-1"))
+        self.assertIsNone(get_entsoe_zone("unknown", "europe-west1"))
+
+    def test_watttime_region_mappings_are_provider_specific_and_case_insensitive(self):
+        self.assertEqual(get_wattime_ba("aws", "us-west-1"), "CAISO_NORTH")
+        self.assertEqual(get_wattime_ba("azure", "EastUS2"), "PJM_WEST")
+        self.assertEqual(get_wattime_ba("gcp", "US-EAST4"), "PJM_WEST")
+        self.assertEqual(resolve_watttime("azure", "southcentralus"), "ERCOT_NORTH")
+        self.assertIsNone(resolve_watttime("aws", "us-central-1"))
+        self.assertIsNone(resolve_watttime("aws", "us-west-2-alt"))
+        self.assertIsNone(get_wattime_ba("aws", "us-east4"))
+        self.assertIsNone(get_wattime_ba("unknown", "us-east-1"))
 
     def test_signal_status_uses_freshness_and_forecast_thresholds(self):
         now = datetime(2026, 10, 6, 8, 0, tzinfo=timezone.utc)
@@ -61,9 +196,9 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(live_home.compute_status(None, fallback=True), "fallback")
 
     async def test_watttime_reads_missing_credentials_from_current_environment(self):
-        with (
-            patch.object(settings, "WATTTIME_USERNAME", ""),
-            patch.object(settings, "WATTTIME_PASSWORD", ""),
+        with patch.dict(
+            "os.environ",
+            {"WATTTIME_USERNAME": "", "WATTTIME_PASSWORD": ""},
         ):
             with self.assertRaises(HTTPException) as raised:
                 await watttime_get_token()
@@ -72,7 +207,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(raised.exception.detail, "WattTime credentials missing")
 
     async def test_entsoe_reads_api_key_from_current_environment(self):
-        with patch.object(settings, "ENTSOE_API_KEY", ""):
+        with patch.dict("os.environ", {"ENTSOE_API_KEY": ""}):
             with self.assertRaises(HTTPException) as raised:
                 await _fetch_generation_xml(
                     "10YFI-1--------U",
@@ -86,6 +221,131 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
             raised.exception.detail,
             "ENTSO-E API key is not configured",
         )
+
+    async def test_live_home_uses_provider_specific_entsoe_mapping(self):
+        timestamp = datetime.now(timezone.utc).isoformat()
+        signal = {
+            "value": 123.0,
+            "source": "ENTSO-E",
+            "updated_at": timestamp,
+            "status": "live",
+        }
+        with patch.object(
+            live_home,
+            "entsoe_live_signal",
+            new=AsyncMock(return_value=signal),
+        ) as entsoe_fetch:
+            result = await live_home._get_region_signal("aws", "eu-west-3")
+
+        entsoe_fetch.assert_awaited_once_with("10YFR-RTE------C")
+        self.assertEqual(result["source"], "ENTSO-E")
+        self.assertEqual(result["_grid_key"], "entsoe:10YFR-RTE------C")
+
+    async def test_live_home_falls_back_to_uk_when_entsoe_fails(self):
+        timestamp = datetime.now(timezone.utc).isoformat()
+        uk_signal = {
+            "value": 87.0,
+            "source": "UK Carbon Intensity API",
+            "updated_at": timestamp,
+            "status": "live",
+        }
+        with (
+            patch.object(
+                live_home,
+                "entsoe_live_signal",
+                new=AsyncMock(
+                    side_effect=HTTPException(502, "ENTSO-E temporarily unavailable")
+                ),
+            ) as entsoe_fetch,
+            patch.object(
+                live_home,
+                "uk_signal",
+                new=AsyncMock(return_value=uk_signal),
+            ) as uk_fetch,
+        ):
+            result = await live_home._get_region_signal("aws", "eu-west-2")
+
+        entsoe_fetch.assert_awaited_once_with("10YGB----------A")
+        uk_fetch.assert_awaited_once_with()
+        self.assertEqual(result["source"], "UK Carbon Intensity API")
+        self.assertEqual(result["intensity"], 87.0)
+        self.assertEqual(
+            result["_source_errors"],
+            {"ENTSO-E": "ENTSO-E temporarily unavailable"},
+        )
+
+    async def test_live_home_uses_provider_specific_watttime_mapping(self):
+        timestamp = datetime.now(timezone.utc).isoformat()
+        signal = {
+            "value": 123.0,
+            "source": "WattTime",
+            "updated_at": timestamp,
+            "status": "live",
+        }
+        with patch.object(
+            live_home,
+            "watttime_signal",
+            new=AsyncMock(return_value=signal),
+        ) as watttime_fetch:
+            result = await live_home._get_region_signal("aws", "us-west-1")
+
+        watttime_fetch.assert_awaited_once_with("CAISO_NORTH")
+        self.assertEqual(result["source"], "WattTime")
+        self.assertEqual(result["_grid_key"], "watttime:CAISO_NORTH")
+
+    async def test_entsoe_forecast_uses_provider_specific_mapping(self):
+        with patch.object(
+            forecast,
+            "fetch_entsoe_forecast",
+            new=AsyncMock(return_value=[]),
+        ) as entsoe_fetch:
+            await forecast.entsoe_forecast("gcp", "europe-west6")
+
+        entsoe_fetch.assert_awaited_once_with("10YCH-SWISSGRIDZ")
+
+    async def test_forecast_does_not_call_watttime_for_unmapped_region(self):
+        with patch.object(
+            forecast,
+            "watttime_get_moer",
+            new=AsyncMock(),
+        ) as watttime_fetch:
+            result = await forecast._forecast_target("aws", "us-east4")
+
+        watttime_fetch.assert_not_awaited()
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIn("No forecast provider is configured", result["message"])
+
+    async def test_carbon_endpoint_rejects_unmapped_region_without_static_fallback(self):
+        with patch.object(
+            carbon_routes,
+            "watttime_get_moer",
+            new=AsyncMock(),
+        ) as watttime_fetch:
+            with self.assertRaises(HTTPException) as raised:
+                await carbon_routes.get_carbon_intensity("aws", "us-east4")
+
+        watttime_fetch.assert_not_awaited()
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertIn("No live carbon intensity source", raised.exception.detail)
+
+    async def test_carbon_endpoint_falls_back_from_entsoe_to_uk(self):
+        with (
+            patch.object(
+                carbon_routes,
+                "get_entsoe_intensity",
+                new=AsyncMock(side_effect=HTTPException(502, "ENTSO-E unavailable")),
+            ) as entsoe_fetch,
+            patch.object(
+                carbon_routes,
+                "get_uk_intensity",
+                new=AsyncMock(return_value=0.0),
+            ) as uk_fetch,
+        ):
+            intensity = await carbon_routes.get_carbon_intensity("aws", "eu-west-2")
+
+        entsoe_fetch.assert_awaited_once_with("10YGB----------A")
+        uk_fetch.assert_awaited_once_with()
+        self.assertEqual(intensity, 0.0)
 
     def test_debug_environment_endpoint_reports_presence_without_values(self):
         with patch.dict(
@@ -255,9 +515,14 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         ]
         try:
             with (
-                patch.object(settings, "WATTTIME_USERNAME", ""),
-                patch.object(settings, "WATTTIME_PASSWORD", ""),
-                patch.object(settings, "ENTSOE_API_KEY", ""),
+                patch.dict(
+                    "os.environ",
+                    {
+                        "WATTTIME_USERNAME": "",
+                        "WATTTIME_PASSWORD": "",
+                        "ENTSOE_API_KEY": "",
+                    },
+                ),
                 patch.object(
                     live_home,
                     "_get_region_signal",

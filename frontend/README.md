@@ -23,7 +23,7 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Open [http://localhost:3000](http://localhost:3000) after both servers are running. The frontend uses `NEXT_PUBLIC_API_URL=http://localhost:8000` from `.env.local`.
+Open [http://localhost:3000](http://localhost:3000) after both servers are running. For local backend development, set `NEXT_PUBLIC_API_URL=http://localhost:8000` in `.env.local`. The checked-in `.env.example` points to the deployed Railway API by default.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
