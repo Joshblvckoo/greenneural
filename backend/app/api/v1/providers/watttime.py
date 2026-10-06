@@ -7,8 +7,6 @@ import httpx
 from fastapi import HTTPException
 
 
-WATTTIME_USERNAME = os.getenv("WATTTIME_USERNAME")
-WATTTIME_PASSWORD = os.getenv("WATTTIME_PASSWORD")
 _TOKEN_CACHE_TTL_SECONDS = 25 * 60
 _cached_token: str | None = None
 _cached_token_expires_at = 0.0
@@ -18,7 +16,9 @@ _token_lock = asyncio.Lock()
 async def watttime_get_token() -> str:
     """Return a cached WattTime token, refreshing it before expiration."""
     global _cached_token, _cached_token_expires_at
-    if not WATTTIME_USERNAME or not WATTTIME_PASSWORD:
+    username = os.getenv("WATTTIME_USERNAME")
+    password = os.getenv("WATTTIME_PASSWORD")
+    if not username or not password:
         raise HTTPException(
             status_code=500,
             detail="WattTime credentials missing",
@@ -34,7 +34,7 @@ async def watttime_get_token() -> str:
         async with httpx.AsyncClient(timeout=15) as client:
             response = await client.get(
                 "https://api.watttime.org/v2/login",
-                auth=(WATTTIME_USERNAME, WATTTIME_PASSWORD),
+                auth=(username, password),
             )
 
         if response.status_code != 200:

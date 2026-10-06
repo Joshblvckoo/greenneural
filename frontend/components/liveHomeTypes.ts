@@ -48,6 +48,8 @@ export type LiveHomeResponse = {
   }>;
   source_health: Record<string, {
     status: SignalStatus;
+    configured: boolean;
+    missing_configuration: string[];
     regions_available: number;
     regions_checked: number;
     updated_at: string | null;

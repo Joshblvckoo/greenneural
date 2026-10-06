@@ -2,7 +2,11 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
+from fastapi import HTTPException
+
 from app.api.v1.providers import live_home
+from app.api.v1.providers.entsoe import _fetch_generation_xml
+from app.api.v1.providers.watttime import watttime_get_token
 
 
 class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
@@ -53,6 +57,33 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
             "forecast",
         )
         self.assertEqual(live_home.compute_status(None, fallback=True), "fallback")
+
+    async def test_watttime_reads_missing_credentials_from_current_environment(self):
+        with patch.dict(
+            "os.environ",
+            {"WATTTIME_USERNAME": "", "WATTTIME_PASSWORD": ""},
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                await watttime_get_token()
+
+        self.assertEqual(raised.exception.status_code, 500)
+        self.assertEqual(raised.exception.detail, "WattTime credentials missing")
+
+    async def test_entsoe_reads_api_key_from_current_environment(self):
+        with patch.dict("os.environ", {"ENTSOE_API_KEY": ""}):
+            with self.assertRaises(HTTPException) as raised:
+                await _fetch_generation_xml(
+                    "10YFI-1--------U",
+                    "A75",
+                    datetime.now(timezone.utc),
+                    datetime.now(timezone.utc) + timedelta(hours=1),
+                )
+
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(
+            raised.exception.detail,
+            "ENTSO-E API key is not configured",
+        )
 
     async def test_live_response_includes_provenance_status_and_mix(self):
         original_regions = live_home.REGIONS
@@ -198,6 +229,14 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         ]
         try:
             with (
+                patch.dict(
+                    "os.environ",
+                    {
+                        "WATTTIME_USERNAME": "",
+                        "WATTTIME_PASSWORD": "",
+                        "ENTSOE_API_KEY": "",
+                    },
+                ),
                 patch.object(
                     live_home,
                     "_get_region_signal",
@@ -233,6 +272,11 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             result["source_health"]["WattTime"]["regions_available"],
             0,
+        )
+        self.assertFalse(result["source_health"]["WattTime"]["configured"])
+        self.assertEqual(
+            result["source_health"]["WattTime"]["missing_configuration"],
+            ["WATTTIME_USERNAME", "WATTTIME_PASSWORD"],
         )
 
 

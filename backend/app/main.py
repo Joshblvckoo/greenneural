@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,7 +18,8 @@ app.add_middleware(
 
 from dotenv import load_dotenv
 
-load_dotenv()
+if os.getenv("APP_ENV", "development").lower() == "development":
+    load_dotenv()
 
 from app.api.v1.carbon.routes import router as carbon_router
 from app.api.v1.home import router as home_router

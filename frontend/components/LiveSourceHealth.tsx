@@ -37,6 +37,11 @@ export default function LiveSourceHealth({
               {health.regions_available} of {health.regions_checked} mapped
               regions reporting
             </p>
+            {!health.configured && health.missing_configuration.length > 0 && (
+              <p className="mt-2 text-xs font-medium text-amber-800 dark:text-amber-200">
+                Missing backend variables: {health.missing_configuration.join(", ")}
+              </p>
+            )}
             <DataSourceTag
               source={source}
               latencyMs={health.latency_ms}

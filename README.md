@@ -19,6 +19,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
+$env:APP_ENV = "development"
 python -m uvicorn main:app --reload --port 8000
 ```
 
@@ -72,4 +73,4 @@ Build Command: pip install -r requirements.txt
 Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-Set `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_API_KEY`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Render environment variables as needed by the enabled providers. The Pro time-to-clean forecast endpoint verifies signed-in Supabase access tokens using the latter two settings. WattTime, UK grid, and ENTSO-E sources are used where configured; any unavailable provider signals are surfaced as unavailable rather than presented as live. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.
+Set `APP_ENV=production`, `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_API_KEY`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Render environment variables as needed by the enabled providers. Production reads configuration from the process environment and does not load a `.env` file. The WattTime and ENTSO-E adapters read their credential variables at request time; the homepage source diagnostics report missing variable names without exposing their values. The Pro time-to-clean forecast endpoint verifies signed-in Supabase access tokens using the latter two settings. WattTime, UK grid, and ENTSO-E sources are used where configured; any unavailable provider signals are surfaced as unavailable rather than presented as live. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.

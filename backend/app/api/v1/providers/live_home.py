@@ -1,5 +1,6 @@
 import asyncio
 import math
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -261,11 +262,18 @@ async def _build_live_home() -> dict[str, Any]:
     generation_mix = await _get_generation_mix(signals)
     now = datetime.now(timezone.utc)
     source_health: dict[str, dict[str, Any]] = {}
-    for source_name in (
-        "WattTime",
-        "ENTSO-E",
-        "UK Carbon Intensity API",
-    ):
+    source_config = {
+        "WattTime": [
+            name for name in ("WATTTIME_USERNAME", "WATTTIME_PASSWORD")
+            if not os.getenv(name)
+        ],
+        "ENTSO-E": [
+            name for name in ("ENTSOE_API_KEY",)
+            if not os.getenv(name)
+        ],
+        "UK Carbon Intensity API": [],
+    }
+    for source_name, missing_variables in source_config.items():
         source_signals = [
             signal for signal in signals
             if signal.get("_source_name") == source_name
@@ -294,6 +302,8 @@ async def _build_live_home() -> dict[str, Any]:
                 if latest_timestamp
                 else "unavailable"
             ),
+            "configured": not missing_variables,
+            "missing_configuration": missing_variables,
             "regions_available": len(source_readings),
             "regions_checked": len(source_signals),
             "updated_at": latest_timestamp.isoformat() if latest_timestamp else None,
@@ -311,6 +321,8 @@ async def _build_live_home() -> dict[str, Any]:
     if unconfigured_regions:
         source_health["Unconfigured regions"] = {
             "status": "unavailable",
+            "configured": False,
+            "missing_configuration": [],
             "regions_available": 0,
             "regions_checked": len(unconfigured_regions),
             "updated_at": None,

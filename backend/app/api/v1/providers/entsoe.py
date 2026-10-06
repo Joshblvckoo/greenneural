@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from fastapi import HTTPException
 
-API_KEY = os.getenv("ENTSOE_API_KEY")
 ENTSOE_API_URL = "https://transparency.entsoe.eu/api"
 
 ENTSOE_ZONES = {
@@ -212,7 +211,7 @@ async def _fetch_generation_xml(
     period_start: datetime,
     period_end: datetime,
 ) -> str:
-    api_key = os.getenv("ENTSOE_API_KEY") or API_KEY
+    api_key = os.getenv("ENTSOE_API_KEY")
     if not api_key:
         raise HTTPException(status_code=503, detail="ENTSO-E API key is not configured")
 
