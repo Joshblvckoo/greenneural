@@ -1,6 +1,27 @@
 import DataSourceTag from "./DataSourceTag";
 import type { LiveHomeResponse } from "./liveHomeTypes";
 
+const FRIENDLY_SOURCE_ERROR =
+  "Some data sources are temporarily unavailable.";
+
+function sourceStatusMessage(
+  status: string,
+  configured: boolean,
+  missingConfiguration: string[],
+  errors: string[],
+) {
+  if (
+    status === "unavailable" ||
+    status === "error" ||
+    !configured ||
+    missingConfiguration.length > 0 ||
+    errors.length > 0
+  ) {
+    return FRIENDLY_SOURCE_ERROR;
+  }
+  return null;
+}
+
 export default function LiveSourceHealth({
   sources,
 }: {
@@ -25,39 +46,43 @@ export default function LiveSourceHealth({
         </h2>
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {Object.entries(sources).map(([source, health]) => (
-          <article
-            key={source}
-            className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]"
-          >
-            <h3 className="font-semibold text-slate-900 dark:text-white">
-              {source}
-            </h3>
-            <p className="mt-2 text-sm text-slate-600 dark:text-white/60">
-              {health.regions_available} of {health.regions_checked} mapped
-              regions reporting
-            </p>
-            {!health.configured && health.missing_configuration.length > 0 && (
-              <p className="mt-2 text-xs font-medium text-amber-800 dark:text-amber-200">
-                Missing backend variables: {health.missing_configuration.join(", ")}
+        {Object.entries(sources).map(([source, health]) => {
+          const message = sourceStatusMessage(
+            health.status,
+            health.configured,
+            health.missing_configuration,
+            health.errors,
+          );
+          return (
+            <article
+              key={source}
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]"
+            >
+              <h3 className="font-semibold text-slate-900 dark:text-white">
+                {source}
+              </h3>
+              <p className="mt-2 text-sm text-slate-600 dark:text-white/60">
+                {health.regions_available} of {health.regions_checked} mapped
+                regions reporting
               </p>
-            )}
-            <DataSourceTag
-              source={source}
-              latencyMs={health.latency_ms}
-              status={health.status}
-              updatedAt={health.updated_at}
-              className="mt-2"
-            />
-            {health.errors.length > 0 && (
-              <ul className="mt-3 space-y-1 text-xs text-amber-800 dark:text-amber-200">
-                {health.errors.map((error) => (
-                  <li key={error}>{error}</li>
-                ))}
-              </ul>
-            )}
-          </article>
-        ))}
+              {message && (
+                <p
+                  className="mt-2 text-xs font-medium text-amber-800 dark:text-amber-200"
+                  role="status"
+                >
+                  {message}
+                </p>
+              )}
+              <DataSourceTag
+                source={source}
+                latencyMs={health.latency_ms}
+                status={health.status}
+                updatedAt={health.updated_at}
+                className="mt-2"
+              />
+            </article>
+          );
+        })}
       </div>
     </section>
   );
