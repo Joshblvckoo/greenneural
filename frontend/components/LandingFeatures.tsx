@@ -1,8 +1,8 @@
 import { Activity, Cloud, Gauge, MapPinned, ShieldCheck, Zap } from "lucide-react";
 
 const features = [
-  { icon: Activity, eyebrow: "Observe", title: "Carbon intensity in context", description: "Compare live emissions across AWS, Azure, and GCP regions before you place a workload." },
-  { icon: MapPinned, eyebrow: "Anticipate", title: "Climate risk, made legible", description: "See heat, flood, and air-quality signals for the cities and regions your systems depend on." },
+  { icon: Activity, eyebrow: "Observe", title: "Carbon intensity in context", description: "Compare current grid signals across supported AWS, Azure, and GCP regions, with source and freshness clearly marked." },
+  { icon: MapPinned, eyebrow: "Anticipate", title: "Climate risk, made legible", description: "Explore heat, flood, and air-quality risk indicators for the cities and regions your systems depend on." },
   { icon: Gauge, eyebrow: "Improve", title: "A practical SCI score", description: "Measure software carbon intensity with a clear score and concrete ways to reduce it." },
 ];
 

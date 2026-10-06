@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.api.v1.coverage import COVERAGE
-from app.api.v1.providers.cloud_health import compute_provider_health
+from app.api.v1.providers.live_home import compute_live_home
 
 router = APIRouter(prefix="/home")
 
@@ -35,4 +35,4 @@ async def home_summary():
 
 @router.get("/live")
 async def home_live():
-    return await compute_provider_health()
+    return await compute_live_home()

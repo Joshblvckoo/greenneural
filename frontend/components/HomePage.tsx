@@ -1,30 +1,21 @@
 import type { FC } from "react";
 import Link from "next/link";
-import {
-  Activity,
-  ArrowRight,
-  BarChart3,
-  Globe2,
-  MapPinned,
-  Radio,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, MapPinned, Sparkles } from "lucide-react";
 import CleanestRegionLeaderboard from "./CleanestRegionLeaderboard";
 import CoverageMap from "./CoverageMap";
 import GlobalCarbonSnapshot from "./GlobalCarbonSnapshot";
+import LiveGenerationMix from "./LiveGenerationMix";
 import ProviderHealthWidget from "./ProviderHealthWidget";
+import SignalStatusBadge from "./SignalStatusBadge";
+import SignalValue from "./SignalValue";
+import { useLiveHomeData } from "./useLiveHomeData";
 
-const comingSoon = [
-  "Asia real-time grid coverage",
-  "Africa regional carbon signals",
-  "Global cleanest-region leaderboard",
-  "Carbon-aware routing for Kubernetes",
-  "Historical carbon trends (24h, 7d, 30d)",
-  "City-level emissions intelligence",
-];
+const HomePage: FC = () => {
+  const { data, loading, error } = useLiveHomeData();
+  const signal = data?.global_signal;
 
-const HomePage: FC = () => (
-  <>
+  return (
+    <>
     <section className="relative isolate overflow-hidden border-b border-emerald-900/10 bg-gradient-to-br from-[#f4fbf6] via-white to-emerald-50 px-6 py-20 dark:border-emerald-300/10 dark:from-[#07120f] dark:via-[#0b1914] dark:to-[#10281d] sm:py-28 lg:px-10">
       <div className="pointer-events-none absolute -right-24 -top-24 -z-10 h-96 w-96 rounded-full bg-emerald-300/25 blur-3xl dark:bg-emerald-400/10" />
       <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
@@ -55,43 +46,57 @@ const HomePage: FC = () => (
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          {[
-            { value: "42", label: "regions", icon: MapPinned },
-            { value: "29", label: "countries", icon: Globe2 },
-            { value: "120+", label: "cities", icon: Activity },
-          ].map(({ value, label, icon: Icon }) => (
-            <div
-              key={label}
-              className="rounded-2xl border border-emerald-900/10 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-6"
-            >
-              <Icon
-                size={20}
-                className="text-emerald-700 dark:text-emerald-300"
-                aria-hidden="true"
-              />
-              <p className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-                {value}
-              </p>
-              <p className="mt-1 text-sm text-slate-500 dark:text-white/50">
-                {label}
-              </p>
-            </div>
-          ))}
-          <p className="col-span-3 text-right text-xs text-slate-500 dark:text-white/40">
-            Coverage expanding weekly
+        <div className="rounded-3xl border border-emerald-900/10 bg-white/80 p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
+              Live global grid signal
+            </p>
+            {signal && <SignalStatusBadge status={signal.status} />}
+          </div>
+          <p className="mt-8 min-h-12 text-4xl font-semibold tracking-tight text-slate-950 dark:text-white">
+            {signal?.intensity == null ? (loading ? "Connecting…" : "Unavailable") : (
+              <>
+                <SignalValue
+                  value={signal.intensity}
+                  trend={signal.trend}
+                  updatedAt={signal.updated_at}
+                />
+                <span className="ml-2 text-sm font-normal text-slate-500 dark:text-white/50">
+                  gCO₂/kWh
+                </span>
+              </>
+            )}
+          </p>
+          <p className="mt-3 text-sm text-slate-600 dark:text-emerald-50/60">
+            {signal?.status === "fallback"
+              ? "Fallback estimate · no live regional readings are available."
+              : `Based on ${signal?.regions_included ?? 0} currently available regional grid readings.`}
           </p>
         </div>
       </div>
     </section>
 
     <div className="bg-[#f7faf8] px-6 py-16 dark:bg-[#08130f] sm:py-20 lg:px-10">
+      {error && (
+        <p className="mx-auto mb-5 max-w-7xl rounded-xl border border-amber-500/20 bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200" role="status">
+          {error}
+        </p>
+      )}
       <div className="mx-auto mb-5 max-w-7xl">
-        <ProviderHealthWidget />
+        <ProviderHealthWidget providers={data?.provider_health ?? null} loading={loading} />
       </div>
       <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-2">
-        <GlobalCarbonSnapshot />
-        <CleanestRegionLeaderboard />
+        <GlobalCarbonSnapshot
+          signal={data?.global_signal ?? null}
+          loading={loading}
+        />
+        <CleanestRegionLeaderboard
+          entries={data?.cleanest_regions ?? null}
+          loading={loading}
+        />
+      </div>
+      <div className="mx-auto mt-5 grid max-w-7xl gap-5 lg:grid-cols-2">
+        <LiveGenerationMix generationMix={data?.generation_mix ?? null} />
       </div>
       <div className="mx-auto mt-5 max-w-7xl">
         <CoverageMap />
@@ -119,41 +124,8 @@ const HomePage: FC = () => (
       </div>
     </section>
 
-    <section className="bg-[#f1f6f3] px-6 py-16 dark:bg-[#0a1712] sm:py-20 lg:px-10">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex items-center gap-3">
-          <BarChart3
-            size={20}
-            className="text-emerald-700 dark:text-emerald-300"
-            aria-hidden="true"
-          />
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
-              Coming soon
-            </p>
-            <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-              Coverage is growing
-            </h2>
-          </div>
-        </div>
-        <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {comingSoon.map((item) => (
-            <li
-              key={item}
-              className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white/80 p-4 text-slate-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-emerald-50/70"
-            >
-              <Radio
-                size={17}
-                className="mt-0.5 shrink-0 text-emerald-700 dark:text-emerald-300"
-                aria-hidden="true"
-              />
-              {item}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  </>
-);
+    </>
+  );
+};
 
 export default HomePage;

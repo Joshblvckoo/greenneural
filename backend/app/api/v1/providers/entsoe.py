@@ -148,6 +148,47 @@ def _carbon_intensity(mix: dict[str, float]) -> float | None:
     return round(weighted_emissions / total_generation)
 
 
+async def entsoe_live_signal(zone: str) -> dict[str, object]:
+    xml_text = await entsoe_generation_mix(zone)
+    points = _period_points(xml_text)
+    if not points:
+        raise HTTPException(
+            status_code=502,
+            detail="ENTSO-E returned no usable generation mix",
+        )
+
+    latest_timestamp = max(timestamp for timestamp, _, _ in points)
+    raw_mix: dict[str, float] = {}
+    for timestamp, fuel_code, value in points:
+        if timestamp == latest_timestamp and value > 0:
+            fuel = ENTSOE_FUEL_MAP[fuel_code]
+            raw_mix[fuel] = raw_mix.get(fuel, 0.0) + value
+
+    intensity = _carbon_intensity(raw_mix)
+    total_generation = sum(raw_mix.values())
+    if intensity is None or total_generation <= 0:
+        raise HTTPException(
+            status_code=502,
+            detail="ENTSO-E returned no usable generation mix",
+        )
+
+    mix_percent = {
+        fuel: round(value / total_generation * 100, 2)
+        for fuel, value in raw_mix.items()
+    }
+    if latest_timestamp.tzinfo is None:
+        latest_timestamp = latest_timestamp.replace(tzinfo=timezone.utc)
+    age_seconds = (datetime.now(timezone.utc) - latest_timestamp).total_seconds()
+    status = "live" if 0 <= age_seconds <= 1800 else "delayed"
+    return {
+        "value": intensity,
+        "source": "ENTSO-E",
+        "updated_at": latest_timestamp.isoformat(),
+        "status": status,
+        "mix": mix_percent,
+    }
+
+
 def _intensity_series(xml_text: str) -> list[dict[str, str | float]]:
     by_timestamp: dict[datetime, dict[str, float]] = {}
     for timestamp, fuel_code, value in _period_points(xml_text):

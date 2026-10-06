@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import os
 
 import httpx
@@ -40,6 +41,49 @@ async def watttime_get_token() -> str:
         )
 
     return token
+
+
+async def watttime_signal(region: str) -> dict[str, str | float | None]:
+    token = await watttime_get_token()
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.get(
+            "https://api.watttime.org/v3/signal-index",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"region": region, "signal_type": "co2_moer"},
+        )
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="WattTime MOER fetch failed")
+
+    try:
+        readings = response.json()["data"]
+        if not isinstance(readings, list) or not readings:
+            raise ValueError("WattTime returned no signal readings")
+        reading = readings[0]
+        value = float(reading["value"])
+        updated_at = reading.get("timestamp") or reading.get("point_time")
+    except (ValueError, KeyError, TypeError) as error:
+        raise HTTPException(
+            status_code=502,
+            detail="WattTime MOER response contained an invalid reading",
+        ) from error
+
+    status = "delayed"
+    if isinstance(updated_at, str):
+        try:
+            timestamp = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+            age_seconds = (datetime.now(timezone.utc) - timestamp).total_seconds()
+            status = "live" if 0 <= age_seconds <= 1800 else "delayed"
+        except ValueError:
+            updated_at = None
+
+    return {
+        "value": value,
+        "source": "WattTime",
+        "updated_at": updated_at,
+        "status": status,
+    }
 
 
 async def watttime_get_moer(region: str) -> float | None:

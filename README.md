@@ -24,6 +24,20 @@ python -m uvicorn main:app --reload --port 8000
 
 The API and OpenAPI docs are available at `http://localhost:8000` and `http://localhost:8000/docs`.
 
+The public homepage reads its aggregated live signal surface from
+`GET /api/v1/home/live`. It displays separate global signal, cleanest-region,
+provider-health, and generation-mix widgets. The client refreshes the shared
+feed every 30 seconds. Each widget shows source provenance, measured request
+latency, signal freshness, and a relative source-update time. Intensity changes
+animate cleaner, dirtier, or stable updates (with reduced-motion support).
+
+Signals are labeled `live` (<60 seconds old), `delayed` (60–300 seconds),
+`stale` (>300 seconds), `forecast`, `fallback`, or `unavailable`. Fallback
+estimates are clearly identified and excluded from the cleanest-region ranking;
+they are not represented as live data. The 10-minute trend becomes available
+after the backend has collected enough in-process readings; it is marked
+`unknown` while warming up and resets when the backend process restarts.
+
 ### Frontend
 
 ```powershell
@@ -55,4 +69,4 @@ Build Command: pip install -r requirements.txt
 Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-Set `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_API_KEY`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Render environment variables as needed by the enabled providers. The Pro time-to-clean forecast endpoint verifies signed-in Supabase access tokens using the latter two settings. WattTime and UK forecast data are supported; EU forecast cards remain unavailable until a validated full-grid carbon-intensity forecast source is configured. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.
+Set `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_API_KEY`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Render environment variables as needed by the enabled providers. The Pro time-to-clean forecast endpoint verifies signed-in Supabase access tokens using the latter two settings. WattTime, UK grid, and ENTSO-E sources are used where configured; any unavailable provider signals are surfaced as unavailable rather than presented as live. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.

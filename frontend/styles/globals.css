@@ -76,3 +76,25 @@ body {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+@keyframes signal-update {
+  from { opacity: 0.45; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes flash-green {
+  0% { color: inherit; }
+  35% { color: #059669; }
+  100% { color: inherit; }
+}
+
+@keyframes flash-red {
+  0% { color: inherit; }
+  35% { color: #e11d48; }
+  100% { color: inherit; }
+}
+
+@keyframes fade-neutral {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
