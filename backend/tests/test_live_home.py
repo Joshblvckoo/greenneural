@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 from fastapi import HTTPException
 
+from app.config.settings import settings
 from app.api.v1.providers import live_home
 from app.api.v1.providers.entsoe import _fetch_generation_xml
 from app.api.v1.providers.watttime import watttime_get_token
@@ -60,9 +61,9 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(live_home.compute_status(None, fallback=True), "fallback")
 
     async def test_watttime_reads_missing_credentials_from_current_environment(self):
-        with patch.dict(
-            "os.environ",
-            {"WATTTIME_USERNAME": "", "WATTTIME_PASSWORD": ""},
+        with (
+            patch.object(settings, "WATTTIME_USERNAME", ""),
+            patch.object(settings, "WATTTIME_PASSWORD", ""),
         ):
             with self.assertRaises(HTTPException) as raised:
                 await watttime_get_token()
@@ -71,7 +72,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(raised.exception.detail, "WattTime credentials missing")
 
     async def test_entsoe_reads_api_key_from_current_environment(self):
-        with patch.dict("os.environ", {"ENTSOE_API_KEY": ""}):
+        with patch.object(settings, "ENTSOE_API_KEY", ""):
             with self.assertRaises(HTTPException) as raised:
                 await _fetch_generation_xml(
                     "10YFI-1--------U",
@@ -254,14 +255,9 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         ]
         try:
             with (
-                patch.dict(
-                    "os.environ",
-                    {
-                        "WATTTIME_USERNAME": "",
-                        "WATTTIME_PASSWORD": "",
-                        "ENTSOE_API_KEY": "",
-                    },
-                ),
+                patch.object(settings, "WATTTIME_USERNAME", ""),
+                patch.object(settings, "WATTTIME_PASSWORD", ""),
+                patch.object(settings, "ENTSOE_API_KEY", ""),
                 patch.object(
                     live_home,
                     "_get_region_signal",

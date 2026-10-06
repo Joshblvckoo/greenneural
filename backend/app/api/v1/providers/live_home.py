@@ -1,6 +1,5 @@
 import asyncio
 import math
-import os
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -8,6 +7,7 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
+from app.config.settings import settings
 from app.api.v1.providers.entsoe import ENTSOE_ZONES, entsoe_live_signal
 from app.api.v1.providers.uk_grid import uk_generation_mix, uk_signal
 from app.api.v1.providers.watttime import watttime_signal
@@ -264,12 +264,17 @@ async def _build_live_home() -> dict[str, Any]:
     source_health: dict[str, dict[str, Any]] = {}
     source_config = {
         "WattTime": [
-            name for name in ("WATTTIME_USERNAME", "WATTTIME_PASSWORD")
-            if not os.getenv(name)
+            name for name, value in (
+                ("WATTTIME_USERNAME", settings.WATTTIME_USERNAME),
+                ("WATTTIME_PASSWORD", settings.WATTTIME_PASSWORD),
+            )
+            if not value
         ],
         "ENTSO-E": [
-            name for name in ("ENTSOE_API_KEY",)
-            if not os.getenv(name)
+            name for name, value in (
+                ("ENTSOE_API_KEY", settings.ENTSOE_API_KEY),
+            )
+            if not value
         ],
         "UK Carbon Intensity API": [],
     }

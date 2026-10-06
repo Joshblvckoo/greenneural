@@ -1,10 +1,11 @@
 import asyncio
 from datetime import datetime, timezone
-import os
 import time
 
 import httpx
 from fastapi import HTTPException
+
+from app.config.settings import settings
 
 
 _TOKEN_CACHE_TTL_SECONDS = 25 * 60
@@ -16,8 +17,8 @@ _token_lock = asyncio.Lock()
 async def watttime_get_token() -> str:
     """Return a cached WattTime token, refreshing it before expiration."""
     global _cached_token, _cached_token_expires_at
-    username = os.getenv("WATTTIME_USERNAME")
-    password = os.getenv("WATTTIME_PASSWORD")
+    username = settings.WATTTIME_USERNAME
+    password = settings.WATTTIME_PASSWORD
     if not username or not password:
         raise HTTPException(
             status_code=500,
