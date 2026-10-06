@@ -16,11 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from dotenv import load_dotenv
-
-if os.getenv("APP_ENV", "development").lower() == "development":
-    load_dotenv()
-
 from app.api.v1.carbon.routes import router as carbon_router
 from app.api.v1.home import router as home_router
 from app.api.v1.home_forecast import router as home_forecast_router
@@ -44,6 +39,22 @@ from app.config.cities import CITIES, CITY_COORDS
 @app.get("/")
 def root():
     return {"status": "GreenNeural backend running"}
+
+
+@app.get("/debug/env")
+def debug_env():
+    required_variables = (
+        "ENTSOE_API_KEY",
+        "WATTTIME_USERNAME",
+        "WATTTIME_PASSWORD",
+    )
+    return {
+        "configured": {
+            name: bool(os.getenv(name))
+            for name in required_variables
+        }
+    }
+
 
 OPENWEATHER_API_KEY = os.getenv("OWM_KEY") or os.getenv("OPENWEATHER_API_KEY")
 

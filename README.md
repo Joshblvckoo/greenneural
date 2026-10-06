@@ -18,10 +18,12 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-Copy-Item .env.example .env
-$env:APP_ENV = "development"
 python -m uvicorn main:app --reload --port 8000
 ```
+
+Set required provider variables in the terminal or IDE launch configuration
+before starting the backend. The backend reads process environment variables
+directly and does not load `.env` files.
 
 The API and OpenAPI docs are available at `http://localhost:8000` and `http://localhost:8000/docs`.
 
@@ -73,4 +75,4 @@ Build Command: pip install -r requirements.txt
 Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-Set `APP_ENV=production`, `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_API_KEY`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Render environment variables as needed by the enabled providers. Production reads configuration from the process environment and does not load a `.env` file. The WattTime and ENTSO-E adapters read their credential variables at request time; the homepage source diagnostics report missing variable names without exposing their values. The Pro time-to-clean forecast endpoint verifies signed-in Supabase access tokens using the latter two settings. WattTime, UK grid, and ENTSO-E sources are used where configured; any unavailable provider signals are surfaced as unavailable rather than presented as live. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.
+Set `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_API_KEY`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Render environment variables as needed by the enabled providers. The backend reads configuration directly from the process environment and never loads `.env` files. `GET /debug/env` reports only whether the WattTime and ENTSO-E variables are set; it deliberately never returns their values. The homepage source diagnostics report missing variable names and safe provider errors. The Pro time-to-clean forecast endpoint verifies signed-in Supabase access tokens using the latter two settings. WattTime, UK grid, and ENTSO-E sources are used where configured; any unavailable provider signals are surfaced as unavailable rather than presented as live. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.

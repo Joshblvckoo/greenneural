@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from app.api.v1.providers import live_home
 from app.api.v1.providers.entsoe import _fetch_generation_xml
 from app.api.v1.providers.watttime import watttime_get_token
+from app.main import debug_env
 
 
 class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
@@ -84,6 +85,30 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
             raised.exception.detail,
             "ENTSO-E API key is not configured",
         )
+
+    def test_debug_environment_endpoint_reports_presence_without_values(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "ENTSOE_API_KEY": "test-entsoe-secret",
+                "WATTTIME_USERNAME": "test-user",
+                "WATTTIME_PASSWORD": "test-watttime-secret",
+            },
+        ):
+            result = debug_env()
+
+        self.assertEqual(
+            result,
+            {
+                "configured": {
+                    "ENTSOE_API_KEY": True,
+                    "WATTTIME_USERNAME": True,
+                    "WATTTIME_PASSWORD": True,
+                }
+            },
+        )
+        self.assertNotIn("test-entsoe-secret", str(result))
+        self.assertNotIn("test-watttime-secret", str(result))
 
     async def test_live_response_includes_provenance_status_and_mix(self):
         original_regions = live_home.REGIONS
