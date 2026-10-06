@@ -10,9 +10,12 @@ from app.config.watttime_regions import get_wattime_ba
 from app.api.v1.providers import live_home
 from app.api.v1.providers import forecast
 from app.api.v1.carbon import routes as carbon_routes
+from app.api.v1 import diagnostics as diagnostics_routes
 from app.api.v1.providers.entsoe import _fetch_generation_xml
 from app.api.v1.providers.watttime import watttime_get_token
-from app.main import debug_env
+from app.config.regions import REGION_MAP
+from app.services import live_signal_scheduler
+from app.main import app, debug_env
 
 
 class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
@@ -145,6 +148,75 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(signal["regions_expected"], 2)
         self.assertTrue(signal["partial"])
         self.assertEqual(signal["sources"], ["UK Carbon Intensity API"])
+
+    def test_diagnostics_enumerates_full_inventory_and_marks_unsupported(self):
+        coverage, regions = diagnostics_routes.build_region_diagnostics(
+            {
+                "region_signals": [
+                    {
+                        "provider": "aws",
+                        "region": "us-east-1",
+                        "intensity": 123.0,
+                        "status": "live",
+                        "source": "WattTime",
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual(
+            len(regions),
+            sum(len(provider_regions) for provider_regions in REGION_MAP.values()),
+        )
+        self.assertEqual(coverage["aws"]["regions_total"], len(REGION_MAP["aws"]))
+        self.assertEqual(coverage["aws"]["regions_available"], 1)
+        unsupported = next(
+            entry for entry in regions
+            if entry["provider"] == "aws" and entry["region"] == "ap-south-1"
+        )
+        self.assertEqual(unsupported["mapping_status"], "unsupported")
+        self.assertEqual(unsupported["status"], "unsupported")
+
+    async def test_scheduler_forces_live_home_refresh_and_reports_success(self):
+        with patch.object(
+            live_signal_scheduler,
+            "compute_live_home",
+            new=AsyncMock(return_value={}),
+        ) as refresh:
+            await live_signal_scheduler.refresh_live_signals()
+
+        refresh.assert_awaited_once_with(force_refresh=True)
+        status = live_signal_scheduler.scheduler_status()
+        self.assertEqual(status["interval_seconds"], 300)
+        self.assertIsNotNone(status["last_attempt_at"])
+        self.assertIsNotNone(status["last_success_at"])
+        self.assertIsNone(status["last_error"])
+        self.assertFalse(status["running"])
+
+    async def test_diagnostics_endpoint_reports_scheduler_and_region_coverage(self):
+        api_paths = app.openapi()["paths"]
+        self.assertIn("/api/v1/home/live", api_paths)
+        self.assertIn("/api/v1/diagnostics", api_paths)
+        snapshot = {
+            "generated_at": "2026-10-06T12:00:00+00:00",
+            "global_signal": {"status": "partial"},
+            "source_health": {"WattTime": {"status": "live"}},
+            "region_signals": [],
+        }
+        with patch.object(
+            diagnostics_routes,
+            "compute_live_home",
+            new=AsyncMock(return_value=snapshot),
+        ):
+            result = await diagnostics_routes.diagnostics()
+
+        self.assertEqual(result["generated_at"], snapshot["generated_at"])
+        self.assertEqual(result["source_health"], snapshot["source_health"])
+        self.assertEqual(
+            len(result["regions"]),
+            sum(len(provider_regions) for provider_regions in REGION_MAP.values()),
+        )
+        self.assertIn("interval_seconds", result["scheduler"])
 
     def test_entsoe_region_mappings_are_provider_specific_and_case_insensitive(self):
         self.assertEqual(get_entsoe_zone("aws", "eu-west-3"), "FR")

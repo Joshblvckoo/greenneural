@@ -8,34 +8,15 @@ import httpx
 from fastapi import HTTPException
 
 from app.config.grid_resolver import resolve_entsoe, resolve_watttime
+from app.config.regions import REGION_MAP
 from app.config.settings import settings
 from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES, entsoe_live_signal
 from app.api.v1.providers.uk_grid import uk_generation_mix, uk_signal
 from app.api.v1.providers.watttime import watttime_signal
 
-REGIONS = {
-    "aws": [
-        "us-east-1", "us-east-2", "us-west-1", "us-west-2",
-        "eu-north-1", "eu-west-1", "eu-west-2",
-        "eu-west-3", "eu-central-1", "eu-central-2", "eu-south-1",
-        "ap-south-1", "af-south-1",
-    ],
-    "azure": [
-        "eastus", "eastus2", "westus", "westus2", "centralus",
-        "southcentralus",
-        "norwayeast", "uksouth", "ukwest", "westeurope",
-        "northeurope", "germanywestcentral", "swedencentral", "italynorth",
-        "francecentral", "polandcentral", "indiacentral", "southafricanorth",
-    ],
-    "gcp": [
-        "us-central1", "us-east1", "us-east4", "us-west1", "us-west2",
-        "europe-west1", "europe-west2",
-        "europe-west3", "europe-west4", "europe-west6", "europe-north1",
-        "asia-south1", "me-west1",
-    ],
-}
+REGIONS = REGION_MAP
 
-_CACHE_TTL_SECONDS = 30
+_CACHE_TTL_SECONDS = 300
 _TREND_WINDOW = timedelta(minutes=10)
 _TREND_MAX_AGE = timedelta(minutes=20)
 _cache: dict[str, Any] | None = None
@@ -310,7 +291,16 @@ def build_global_signal(region_signals: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-async def _get_region_signal(provider: str, region: str) -> dict[str, Any]:
+async def _get_region_signal(
+    provider: str,
+    region: str,
+    *,
+    source_tasks: dict[
+        tuple[str, str],
+        asyncio.Task[dict[str, Any] | None],
+    ] | None = None,
+    source_semaphore: asyncio.Semaphore | None = None,
+) -> dict[str, Any]:
     request_started = time.perf_counter()
     provider_key = provider.lower()
     region_key = region.lower()
@@ -353,7 +343,23 @@ async def _get_region_signal(provider: str, region: str) -> dict[str, Any]:
         attempts.append(source_name)
         attempt_started = time.perf_counter()
         try:
-            signal = await fetch_signal()
+            if source_tasks is None or source_semaphore is None:
+                signal = await fetch_signal()
+            else:
+                task_key = (source_name, grid_key)
+                task = source_tasks.get(task_key)
+                if task is None:
+                    async def fetch_limited(
+                        fetcher: Callable[
+                            [], Awaitable[dict[str, Any] | None]
+                        ] = fetch_signal,
+                    ) -> dict[str, Any] | None:
+                        async with source_semaphore:
+                            return await fetcher()
+
+                    task = asyncio.create_task(fetch_limited())
+                    source_tasks[task_key] = task
+                signal = await task
         except HTTPException as error:
             source_errors[source_name] = str(error.detail)
             signal = None
@@ -470,8 +476,21 @@ async def _build_live_home() -> dict[str, Any]:
         for provider, regions in REGIONS.items()
         for region in regions
     ]
+    source_tasks: dict[
+        tuple[str, str],
+        asyncio.Task[dict[str, Any] | None],
+    ] = {}
+    source_semaphore = asyncio.Semaphore(8)
     signals = await asyncio.gather(
-        *(_get_region_signal(provider, region) for provider, region in targets)
+        *(
+            _get_region_signal(
+                provider,
+                region,
+                source_tasks=source_tasks,
+                source_semaphore=source_semaphore,
+            )
+            for provider, region in targets
+        )
     )
     generation_mix = await _get_generation_mix(signals)
     now = datetime.now(timezone.utc)
@@ -609,6 +628,14 @@ async def _build_live_home() -> dict[str, Any]:
 
     return {
         "global_signal": global_signal,
+        "region_signals": [
+            {
+                key: value
+                for key, value in signal.items()
+                if not key.startswith("_")
+            }
+            for signal in signals
+        ],
         "cleanest_regions": cleanest_regions,
         "provider_health": provider_health,
         "source_health": source_health,
@@ -617,12 +644,20 @@ async def _build_live_home() -> dict[str, Any]:
     }
 
 
-async def compute_live_home() -> dict[str, Any]:
+async def compute_live_home(*, force_refresh: bool = False) -> dict[str, Any]:
     global _cache, _cache_expires_at
-    if _cache is not None and time.monotonic() < _cache_expires_at:
+    if (
+        not force_refresh
+        and _cache is not None
+        and time.monotonic() < _cache_expires_at
+    ):
         return _cache
     async with _cache_lock:
-        if _cache is None or time.monotonic() >= _cache_expires_at:
+        if (
+            force_refresh
+            or _cache is None
+            or time.monotonic() >= _cache_expires_at
+        ):
             _cache = await _build_live_home()
             _cache_expires_at = time.monotonic() + _CACHE_TTL_SECONDS
     return _cache

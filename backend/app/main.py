@@ -1,9 +1,30 @@
+import asyncio
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="GreenNeural API", version="1.0")
+from app.services.live_signal_scheduler import live_signal_refresh_loop
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    refresh_task = asyncio.create_task(
+        live_signal_refresh_loop(),
+        name="live-signal-refresh",
+    )
+    try:
+        yield
+    finally:
+        refresh_task.cancel()
+        try:
+            await refresh_task
+        except asyncio.CancelledError:
+            pass
+
+
+app = FastAPI(title="GreenNeural API", version="1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,15 +40,15 @@ app.add_middleware(
 from app.api.v1.carbon.routes import router as carbon_router
 from app.api.v1.home import router as home_router
 from app.api.v1.home_forecast import router as home_forecast_router
+from app.api.v1.diagnostics import router as diagnostics_router
 
 app.include_router(carbon_router, prefix="/api/v1")
 app.include_router(home_router, prefix="/api/v1")
 app.include_router(home_forecast_router, prefix="/api/v1")
+app.include_router(diagnostics_router, prefix="/api/v1")
 
 from collections import Counter
 from datetime import datetime
-import asyncio
-import os
 
 import httpx
 from fastapi import HTTPException

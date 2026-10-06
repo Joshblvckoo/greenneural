@@ -6,8 +6,33 @@ GreenNeural is a monorepo with a Next.js frontend and a FastAPI backend.
 
 ```text
 frontend/   Next.js app deployed to Vercel
-backend/    FastAPI app deployed to Render
+backend/    FastAPI app and live signal services
 ```
+
+```text
+backend/app/
+├── main.py                         FastAPI app, route registration, lifespan
+├── api/v1/
+│   ├── home.py                     /home and /home/live
+│   ├── diagnostics.py              /diagnostics and region coverage
+│   ├── home_forecast.py            authenticated Time-to-Clean endpoint
+│   ├── carbon/routes.py            carbon-intensity endpoints
+│   └── providers/
+│       ├── live_home.py            aggregation, freshness, provider health
+│       ├── watttime.py             WattTime client
+│       ├── entsoe.py               ENTSO-E client and generation parser
+│       └── uk_grid.py              UK Carbon Intensity client
+├── config/
+│   ├── regions.py                  cloud-region inventory
+│   ├── grid_resolver.py            shared source resolvers
+│   ├── entsoe_regions.py           provider-specific EU mappings
+│   └── watttime_regions.py         provider-specific US mappings
+└── services/
+    └── live_signal_scheduler.py    five-minute refresh task
+```
+
+`regions.py` is GreenNeural's configured cloud-region inventory; regions without
+a provider-backed grid mapping are explicitly diagnosed as unsupported.
 
 ## Local development
 
@@ -28,10 +53,19 @@ directly and does not load `.env` files.
 The API and OpenAPI docs are available at `http://localhost:8000` and `http://localhost:8000/docs`.
 
 The public homepage reads its aggregated live signal surface from
-`GET /api/v1/home/live`. It displays separate global signal, cleanest-region,
-provider-health, and generation-mix widgets. The client refreshes the shared
-feed every 30 seconds. Each widget shows source provenance, measured request
-latency, signal freshness, and a relative source-update time. Intensity changes
+`GET /api/v1/home/live`. `GET /api/v1/diagnostics` reports provider health,
+source errors, scheduler status, and mapping/availability details for every
+region in `app/config/regions.py`. The API includes region-level signals as
+well as global and provider aggregates.
+
+An application-lifespan task refreshes the shared live snapshot every five
+minutes, and the API cache uses the same interval. The client may poll every 30
+seconds but receives the cached snapshot between scheduled refreshes. The
+scheduler is process-local: deploy one backend worker per service instance to
+avoid duplicate upstream polling. A refresh updates the retrieval timestamp,
+not the source timestamp; if a provider has not published a newer reading, the
+signal remains delayed or stale. Each widget shows provenance, measured request
+latency, source freshness, and relative source-update time. Intensity changes
 animate cleaner, dirtier, or stable updates (with reduced-motion support).
 
 Signals are labeled `live` (<60 seconds old), `delayed` (60–300 seconds),

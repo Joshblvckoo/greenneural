@@ -19,6 +19,17 @@ export type LiveSignal = {
   trend?: SignalTrend;
 };
 
+export type RegionLiveSignal = {
+  provider: string;
+  region: string;
+  intensity: number | null;
+  source: string | null;
+  updated_at: string | null;
+  status: SignalStatus | "unsupported";
+  latency_ms: number | null;
+  error?: string;
+};
+
 export type LiveHomeResponse = {
   global_signal: {
     intensity: number | null;
@@ -33,6 +44,7 @@ export type LiveHomeResponse = {
     partial: boolean;
     methodology: string;
   };
+  region_signals: RegionLiveSignal[];
   cleanest_regions: LiveSignal[];
   provider_health: Record<string, {
     average_intensity: number | null;
