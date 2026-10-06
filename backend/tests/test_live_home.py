@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 
@@ -278,8 +278,8 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(raised.exception.status_code, 500)
         self.assertEqual(raised.exception.detail, "WattTime credentials missing")
 
-    async def test_entsoe_reads_api_key_from_current_environment(self):
-        with patch.dict("os.environ", {"ENTSOE_API_KEY": ""}):
+    async def test_entsoe_reads_security_token_from_current_environment(self):
+        with patch.dict("os.environ", {"ENTSOE_SECURITY_TOKEN": ""}):
             with self.assertRaises(HTTPException) as raised:
                 await _fetch_generation_xml(
                     "10YFI-1--------U",
@@ -291,8 +291,39 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(raised.exception.status_code, 503)
         self.assertEqual(
             raised.exception.detail,
-            "ENTSO-E API key is not configured",
+            "ENTSO-E security token is not configured",
         )
+
+    async def test_entsoe_request_uses_security_token_and_domain_parameter(self):
+        response = MagicMock(status_code=200, text="<Acknowledgement/>")
+        client = MagicMock()
+        client.get = AsyncMock(return_value=response)
+        client_context = MagicMock()
+        client_context.__aenter__ = AsyncMock(return_value=client)
+        client_context.__aexit__ = AsyncMock(return_value=None)
+        period_start = datetime(2026, 10, 6, 12, tzinfo=timezone.utc)
+        period_end = period_start + timedelta(hours=1)
+
+        with (
+            patch.dict("os.environ", {"ENTSOE_SECURITY_TOKEN": "test-token"}),
+            patch(
+                "app.api.v1.providers.entsoe.httpx.AsyncClient",
+                return_value=client_context,
+            ),
+        ):
+            result = await _fetch_generation_xml(
+                "10YFR-RTE------C",
+                "A75",
+                period_start,
+                period_end,
+            )
+
+        self.assertEqual(result, "<Acknowledgement/>")
+        request_params = client.get.await_args.kwargs["params"]
+        self.assertEqual(request_params["securityToken"], "test-token")
+        self.assertEqual(request_params["documentType"], "A75")
+        self.assertEqual(request_params["in_Domain"], "10YFR-RTE------C")
+        self.assertNotIn("biddingZone", request_params)
 
     async def test_live_home_uses_provider_specific_entsoe_mapping(self):
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -423,7 +454,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         with patch.dict(
             "os.environ",
             {
-                "ENTSOE_API_KEY": "test-entsoe-secret",
+                "ENTSOE_SECURITY_TOKEN": "test-entsoe-secret",
                 "WATTTIME_USERNAME": "test-user",
                 "WATTTIME_PASSWORD": "test-watttime-secret",
             },
@@ -434,7 +465,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
             result,
             {
                 "configured": {
-                    "ENTSOE_API_KEY": True,
+                    "ENTSOE_SECURITY_TOKEN": True,
                     "WATTTIME_USERNAME": True,
                     "WATTTIME_PASSWORD": True,
                 }
@@ -592,7 +623,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
                     {
                         "WATTTIME_USERNAME": "",
                         "WATTTIME_PASSWORD": "",
-                        "ENTSOE_API_KEY": "",
+                        "ENTSOE_SECURITY_TOKEN": "",
                     },
                 ),
                 patch.object(

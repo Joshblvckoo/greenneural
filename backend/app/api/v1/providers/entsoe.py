@@ -226,12 +226,15 @@ async def _fetch_generation_xml(
     period_start: datetime,
     period_end: datetime,
 ) -> str:
-    api_key = settings.ENTSOE_API_KEY
-    if not api_key:
-        raise HTTPException(status_code=503, detail="ENTSO-E API key is not configured")
+    token = settings.ENTSOE_SECURITY_TOKEN
+    if not token:
+        raise HTTPException(
+            status_code=503,
+            detail="ENTSO-E security token is not configured",
+        )
 
     params = {
-        "securityToken": api_key,
+        "securityToken": token,
         "documentType": document_type,
         "in_Domain": zone,
         "periodStart": period_start.strftime("%Y%m%d%H%M"),

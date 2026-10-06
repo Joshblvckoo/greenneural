@@ -3,8 +3,8 @@ import os
 
 class Settings:
     @property
-    def ENTSOE_API_KEY(self):
-        return os.getenv("ENTSOE_API_KEY")
+    def ENTSOE_SECURITY_TOKEN(self):
+        return os.getenv("ENTSOE_SECURITY_TOKEN")
 
     @property
     def WATTTIME_USERNAME(self):

@@ -505,7 +505,7 @@ async def _build_live_home() -> dict[str, Any]:
         ],
         "ENTSO-E": [
             name for name, value in (
-                ("ENTSOE_API_KEY", settings.ENTSOE_API_KEY),
+                ("ENTSOE_SECURITY_TOKEN", settings.ENTSOE_SECURITY_TOKEN),
             )
             if not value
         ],

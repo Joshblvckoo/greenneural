@@ -65,7 +65,7 @@ def root():
 @app.get("/debug/env")
 def debug_env():
     required_variables = (
-        "ENTSOE_API_KEY",
+        "ENTSOE_SECURITY_TOKEN",
         "WATTTIME_USERNAME",
         "WATTTIME_PASSWORD",
     )
