@@ -235,7 +235,10 @@ async def _fetch_generation_xml(
         ) from error
 
     if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="ENTSO-E request failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"ENTSO-E request failed (HTTP {response.status_code})",
+        )
     return response.text
 
 

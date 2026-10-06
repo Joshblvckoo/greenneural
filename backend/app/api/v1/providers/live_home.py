@@ -8,7 +8,6 @@ import httpx
 from fastapi import HTTPException
 
 from app.api.v1.providers.entsoe import ENTSOE_ZONES, entsoe_live_signal
-from app.api.v1.providers.static import get_static_intensity
 from app.api.v1.providers.uk_grid import uk_generation_mix, uk_signal
 from app.api.v1.providers.watttime import watttime_signal
 from app.api.v1.regions.aws import US_REGION_MAP as AWS_US_REGION_MAP
@@ -121,48 +120,60 @@ def _combined_status(signals: list[dict[str, Any]]) -> str:
 
 async def _get_region_signal(provider: str, region: str) -> dict[str, Any]:
     request_started = time.perf_counter()
+    grid_key: str | None = None
+    source_name: str | None = None
     try:
         if region in US_REGION_MAP[provider]:
             grid = US_REGION_MAP[provider][region]
-            signal = await watttime_signal(grid)
             grid_key = f"watttime:{grid}"
+            source_name = "WattTime"
+            signal = await watttime_signal(grid)
         elif region in {"eu-west-2", "uksouth", "ukwest", "europe-west2"}:
-            signal = await uk_signal()
             grid_key = "uk-grid:GB"
+            source_name = "UK Carbon Intensity API"
+            signal = await uk_signal()
         elif region in ENTSOE_ZONES:
             zone = ENTSOE_ZONES[region]
-            signal = await entsoe_live_signal(zone)
             grid_key = f"entsoe:{zone}"
+            source_name = "ENTSO-E"
+            signal = await entsoe_live_signal(zone)
         else:
             return {
                 "provider": provider,
                 "region": region,
-                "intensity": float(get_static_intensity(region)),
-                "source": "GreenNeural static dataset",
+                "intensity": None,
+                "source": None,
+                "_source_name": None,
                 "updated_at": None,
-                "status": "fallback",
+                "status": "unavailable",
                 "latency_ms": None,
-                "_grid_key": f"static:{region}",
+                "error": "No live grid source is configured for this region.",
             }
-    except HTTPException:
+    except HTTPException as error:
         return {
             "provider": provider,
             "region": region,
             "intensity": None,
-            "source": None,
+            "source": source_name,
+            "_source_name": source_name,
             "updated_at": None,
             "status": "unavailable",
             "latency_ms": round((time.perf_counter() - request_started) * 1000, 2),
+            "_grid_key": grid_key,
+            "error": str(error.detail),
         }
-    except httpx.HTTPError:
+    except httpx.HTTPError as error:
         return {
             "provider": provider,
             "region": region,
             "intensity": None,
-            "source": None,
+            "source": source_name,
+            "_source_name": source_name,
             "updated_at": None,
             "status": "unavailable",
             "latency_ms": round((time.perf_counter() - request_started) * 1000, 2),
+            "_grid_key": grid_key,
+            "error": type(error).__name__,
         }
 
     updated_at = signal.get("updated_at")
@@ -180,6 +191,7 @@ async def _get_region_signal(provider: str, region: str) -> dict[str, Any]:
         ),
         "latency_ms": latency_ms,
         "_grid_key": grid_key,
+        "_source_name": source_name,
     }
     if not math.isfinite(result["intensity"]):
         return {
@@ -190,6 +202,9 @@ async def _get_region_signal(provider: str, region: str) -> dict[str, Any]:
             "updated_at": None,
             "status": "unavailable",
             "latency_ms": latency_ms,
+            "_grid_key": grid_key,
+            "_source_name": source_name,
+            "error": "The live source returned an invalid intensity value.",
         }
     if "mix" in signal:
         result["mix"] = signal["mix"]
@@ -245,6 +260,63 @@ async def _build_live_home() -> dict[str, Any]:
     )
     generation_mix = await _get_generation_mix(signals)
     now = datetime.now(timezone.utc)
+    source_health: dict[str, dict[str, Any]] = {}
+    for source_name in (
+        "WattTime",
+        "ENTSO-E",
+        "UK Carbon Intensity API",
+    ):
+        source_signals = [
+            signal for signal in signals
+            if signal.get("_source_name") == source_name
+        ]
+        source_readings = [
+            signal for signal in source_signals
+            if signal["intensity"] is not None
+            and signal["status"] in {"live", "delayed", "stale", "forecast"}
+        ]
+        timestamps = [
+            timestamp for signal in source_readings
+            if (timestamp := _parse_timestamp(signal["updated_at"])) is not None
+        ]
+        errors = sorted({
+            signal["error"] for signal in source_signals
+            if signal.get("error")
+        })
+        source_latencies = [
+            signal["latency_ms"] for signal in source_signals
+            if signal.get("latency_ms") is not None
+        ]
+        latest_timestamp = max(timestamps) if timestamps else None
+        source_health[source_name] = {
+            "status": (
+                compute_status(latest_timestamp.isoformat())
+                if latest_timestamp
+                else "unavailable"
+            ),
+            "regions_available": len(source_readings),
+            "regions_checked": len(source_signals),
+            "updated_at": latest_timestamp.isoformat() if latest_timestamp else None,
+            "latency_ms": (
+                round(sum(source_latencies) / len(source_latencies), 2)
+                if source_latencies
+                else None
+            ),
+            "errors": errors,
+        }
+
+    unconfigured_regions = [
+        signal for signal in signals if not signal.get("_source_name")
+    ]
+    if unconfigured_regions:
+        source_health["Unconfigured regions"] = {
+            "status": "unavailable",
+            "regions_available": 0,
+            "regions_checked": len(unconfigured_regions),
+            "updated_at": None,
+            "latency_ms": None,
+            "errors": ["No live grid source is configured for these regions."],
+        }
 
     observed = [
         signal for signal in signals
@@ -272,6 +344,11 @@ async def _build_live_home() -> dict[str, Any]:
         ):
             unique_grids[grid_key] = signal
     global_observed = list(unique_grids.values())
+    expected_grids = {
+        signal["_grid_key"]
+        for signal in signals
+        if signal.get("_grid_key")
+    }
 
     if global_observed:
         global_intensity = round(
@@ -301,20 +378,15 @@ async def _build_live_home() -> dict[str, Any]:
         signal_status = _combined_status(global_observed)
         updated_at = min(timestamps).isoformat() if timestamps else None
     else:
-        fallback_values = [
-            float(get_static_intensity(region))
-            for regions in REGIONS.values()
-            for region in regions
-        ]
-        global_intensity = round(sum(fallback_values) / len(fallback_values), 2)
+        global_intensity = None
         global_delta = None
-        source_names = ["GreenNeural static dataset"]
+        source_names = []
         global_latency = None
         updated_at = None
-        signal_status = "fallback"
+        signal_status = "unavailable"
 
     cleanest_regions = sorted(
-        (signal for signal in observed if signal["status"] in {"live", "delayed"}),
+        (signal for signal in global_observed if signal["status"] in {"live", "delayed"}),
         key=lambda signal: signal["intensity"],
     )[:10]
     cleanest_regions = [
@@ -408,14 +480,23 @@ async def _build_live_home() -> dict[str, Any]:
             "updated_at": updated_at,
             "status": signal_status,
             "regions_included": len(global_observed),
+            "regions_expected": len(expected_grids),
+            "partial": len(global_observed) < len(expected_grids),
             "methodology": (
-                "Fallback estimate; no live regional signals were available."
-                if signal_status == "fallback"
-                else "Mean of unique mapped grid signals; provider methodologies vary."
+                "No live grid readings are currently available."
+                if signal_status == "unavailable"
+                else (
+                    f"Partial snapshot: {len(global_observed)} of "
+                    f"{len(expected_grids)} mapped grid signals are available. "
+                    "Provider methodologies vary."
+                    if len(global_observed) < len(expected_grids)
+                    else "Mean of unique mapped grid signals; provider methodologies vary."
+                )
             ),
         },
         "cleanest_regions": cleanest_regions,
         "provider_health": provider_health,
+        "source_health": source_health,
         "generation_mix": generation_mix,
         "generated_at": now.isoformat(),
     }

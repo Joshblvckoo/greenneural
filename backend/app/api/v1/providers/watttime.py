@@ -1,5 +1,7 @@
+import asyncio
 from datetime import datetime, timezone
 import os
+import time
 
 import httpx
 from fastapi import HTTPException
@@ -7,38 +9,56 @@ from fastapi import HTTPException
 
 WATTTIME_USERNAME = os.getenv("WATTTIME_USERNAME")
 WATTTIME_PASSWORD = os.getenv("WATTTIME_PASSWORD")
+_TOKEN_CACHE_TTL_SECONDS = 25 * 60
+_cached_token: str | None = None
+_cached_token_expires_at = 0.0
+_token_lock = asyncio.Lock()
 
 
 async def watttime_get_token() -> str:
-    """Log in to WattTime and return a fresh token."""
+    """Return a cached WattTime token, refreshing it before expiration."""
+    global _cached_token, _cached_token_expires_at
     if not WATTTIME_USERNAME or not WATTTIME_PASSWORD:
         raise HTTPException(
             status_code=500,
             detail="WattTime credentials missing",
         )
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            "https://api.watttime.org/v2/login",
-            auth=(WATTTIME_USERNAME, WATTTIME_PASSWORD),
-        )
+    if _cached_token and time.monotonic() < _cached_token_expires_at:
+        return _cached_token
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="WattTime login failed")
+    async with _token_lock:
+        if _cached_token and time.monotonic() < _cached_token_expires_at:
+            return _cached_token
 
-    try:
-        token = response.json()["token"]
-    except (ValueError, KeyError, TypeError) as error:
-        raise HTTPException(
-            status_code=502,
-            detail="WattTime login returned an unexpected response",
-        ) from error
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get(
+                "https://api.watttime.org/v2/login",
+                auth=(WATTTIME_USERNAME, WATTTIME_PASSWORD),
+            )
 
-    if not isinstance(token, str) or not token:
-        raise HTTPException(
-            status_code=502,
-            detail="WattTime login returned an unexpected response",
-        )
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=f"WattTime login failed (HTTP {response.status_code})",
+            )
+
+        try:
+            token = response.json()["token"]
+        except (ValueError, KeyError, TypeError) as error:
+            raise HTTPException(
+                status_code=502,
+                detail="WattTime login returned an unexpected response",
+            ) from error
+
+        if not isinstance(token, str) or not token:
+            raise HTTPException(
+                status_code=502,
+                detail="WattTime login returned an unexpected response",
+            )
+
+        _cached_token = token
+        _cached_token_expires_at = time.monotonic() + _TOKEN_CACHE_TTL_SECONDS
 
     return token
 
@@ -52,7 +72,10 @@ async def watttime_signal(region: str) -> dict[str, str | float | None]:
             params={"region": region, "signal_type": "co2_moer"},
         )
     if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="WattTime MOER fetch failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"WattTime MOER fetch failed (HTTP {response.status_code})",
+        )
 
     try:
         readings = response.json()["data"]

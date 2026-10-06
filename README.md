@@ -34,9 +34,12 @@ animate cleaner, dirtier, or stable updates (with reduced-motion support).
 Signals are labeled `live` (<60 seconds old), `delayed` (60–300 seconds),
 `stale` (>300 seconds), `forecast`, `fallback`, or `unavailable`. Fallback
 estimates are clearly identified and excluded from the cleanest-region ranking;
-they are not represented as live data. The 10-minute trend becomes available
-after the backend has collected enough in-process readings; it is marked
-`unknown` while warming up and resets when the backend process restarts.
+the homepage does not substitute static estimates when live feeds fail. A
+partial global snapshot reports the number of unique mapped grids that returned
+readings, and the source diagnostics show feed availability and safe error
+details. The 10-minute trend becomes available after the backend has collected
+enough in-process readings; it is marked `unknown` while warming up and resets
+when the backend process restarts.
 
 ### Frontend
 

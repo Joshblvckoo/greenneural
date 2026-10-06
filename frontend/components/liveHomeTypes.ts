@@ -29,6 +29,8 @@ export type LiveHomeResponse = {
     status: SignalStatus;
     latency_ms: number | null;
     regions_included: number;
+    regions_expected: number;
+    partial: boolean;
     methodology: string;
   };
   cleanest_regions: LiveSignal[];
@@ -43,6 +45,14 @@ export type LiveHomeResponse = {
     latency_ms: number | null;
     regions_available: number;
     regions_checked: number;
+  }>;
+  source_health: Record<string, {
+    status: SignalStatus;
+    regions_available: number;
+    regions_checked: number;
+    updated_at: string | null;
+    latency_ms: number | null;
+    errors: string[];
   }>;
   generation_mix: {
     region: string | null;

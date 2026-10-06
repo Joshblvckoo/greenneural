@@ -40,9 +40,11 @@ export default function GlobalCarbonSnapshot({ signal, loading }: Props) {
           <div className="mt-6 flex flex-wrap items-end justify-between gap-5">
             <div>
               <p className="text-sm text-slate-500 dark:text-white/50">
-                {signal.status === "fallback"
-                  ? "Fallback estimate · not a live reading"
-                  : `Mean of ${signal.regions_included} available grid readings`}
+                {signal.intensity === null
+                  ? "No live grid readings are available"
+                  : signal.partial
+                    ? `Partial signal · ${signal.regions_included} of ${signal.regions_expected} mapped grids reporting`
+                    : `Mean of ${signal.regions_included} unique grid readings`}
               </p>
               <p className="mt-1 text-4xl font-semibold tracking-tight text-slate-950 dark:text-white">
                 <SignalValue

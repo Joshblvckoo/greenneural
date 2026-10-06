@@ -22,7 +22,10 @@ async def uk_signal() -> dict[str, str | float]:
     async with httpx.AsyncClient(timeout=15) as client:
         response = await client.get(url)
     if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="UK carbon intensity request failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"UK carbon intensity request failed (HTTP {response.status_code})",
+        )
     try:
         interval = response.json()["data"][0]
         intensity = interval["intensity"]
@@ -59,7 +62,10 @@ async def uk_generation_mix() -> dict[str, str | dict[str, float]]:
     async with httpx.AsyncClient(timeout=15) as client:
         response = await client.get("https://api.carbonintensity.org.uk/generation")
     if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="UK generation mix request failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"UK generation mix request failed (HTTP {response.status_code})",
+        )
     try:
         interval = response.json()["data"][0]
         mix = {

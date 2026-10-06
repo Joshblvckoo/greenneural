@@ -5,6 +5,7 @@ import CleanestRegionLeaderboard from "./CleanestRegionLeaderboard";
 import CoverageMap from "./CoverageMap";
 import GlobalCarbonSnapshot from "./GlobalCarbonSnapshot";
 import LiveGenerationMix from "./LiveGenerationMix";
+import LiveSourceHealth from "./LiveSourceHealth";
 import ProviderHealthWidget from "./ProviderHealthWidget";
 import SignalStatusBadge from "./SignalStatusBadge";
 import SignalValue from "./SignalValue";
@@ -54,7 +55,7 @@ const HomePage: FC = () => {
             {signal && <SignalStatusBadge status={signal.status} />}
           </div>
           <p className="mt-8 min-h-12 text-4xl font-semibold tracking-tight text-slate-950 dark:text-white">
-            {signal?.intensity == null ? (loading ? "Connecting…" : "Unavailable") : (
+            {signal?.intensity == null ? (loading ? "Connecting…" : "Live data unavailable") : (
               <>
                 <SignalValue
                   value={signal.intensity}
@@ -68,9 +69,11 @@ const HomePage: FC = () => {
             )}
           </p>
           <p className="mt-3 text-sm text-slate-600 dark:text-emerald-50/60">
-            {signal?.status === "fallback"
-              ? "Fallback estimate · no live regional readings are available."
-              : `Based on ${signal?.regions_included ?? 0} currently available regional grid readings.`}
+            {signal?.partial
+              ? `Partial signal · ${signal.regions_included} of ${signal.regions_expected} mapped grid sources reporting.`
+              : signal?.intensity == null
+                ? "No live or recent mapped grid readings are available. No static values are substituted."
+                : `Based on ${signal.regions_included} unique grid readings.`}
           </p>
         </div>
       </div>
@@ -82,6 +85,7 @@ const HomePage: FC = () => {
           {error}
         </p>
       )}
+      <LiveSourceHealth sources={data?.source_health ?? null} />
       <div className="mx-auto mb-5 max-w-7xl">
         <ProviderHealthWidget providers={data?.provider_health ?? null} loading={loading} />
       </div>
