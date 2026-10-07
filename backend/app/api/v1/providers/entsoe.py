@@ -8,8 +8,6 @@ from app.config.settings import settings
 from app.utils.freshness import freshness_status
 
 
-ENTSOE_API_URL = "https://transparency.entsoe.eu/api"
-
 ENTSOE_ZONE_CODES = {
     "IE": "10YIE-1001A00010",
     "GB": "10YGB----------A",
@@ -244,7 +242,10 @@ async def _fetch_generation_xml(
 
     try:
         async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.get(ENTSOE_API_URL, params=params)
+            response = await client.get(
+                settings.ENTSOE_ENDPOINT_URL,
+                params=params,
+            )
     except httpx.HTTPError as error:
         raise HTTPException(
             status_code=502,

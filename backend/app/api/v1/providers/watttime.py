@@ -10,9 +10,13 @@ from app.utils.freshness import freshness_status
 
 
 _TOKEN_CACHE_TTL_SECONDS = 25 * 60
+_ACCESS_CACHE_TTL_SECONDS = 5 * 60
 _cached_token: str | None = None
 _cached_token_expires_at = 0.0
 _token_lock = asyncio.Lock()
+_cached_access_regions: frozenset[str] | None = None
+_cached_access_expires_at = 0.0
+_access_lock = asyncio.Lock()
 
 
 async def watttime_get_token() -> str:
@@ -65,7 +69,105 @@ async def watttime_get_token() -> str:
     return token
 
 
+def _parse_access_regions(data: object) -> frozenset[str]:
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=502,
+            detail="WattTime access response had an invalid shape",
+        )
+
+    signal_types = data.get("signal_types")
+    if not isinstance(signal_types, list):
+        raise HTTPException(
+            status_code=502,
+            detail="WattTime access response had an invalid shape",
+        )
+
+    names: set[str] = set()
+    for signal_type in signal_types:
+        if not isinstance(signal_type, dict):
+            raise HTTPException(
+                status_code=502,
+                detail="WattTime access response had an invalid signal type",
+            )
+        if signal_type.get("signal_type") != "co2_moer":
+            continue
+        regions = signal_type.get("regions")
+        if not isinstance(regions, list):
+            raise HTTPException(
+                status_code=502,
+                detail="WattTime access response had an invalid region list",
+            )
+        for region in regions:
+            if not isinstance(region, dict) or not isinstance(
+                region.get("region"), str
+            ):
+                raise HTTPException(
+                    status_code=502,
+                    detail="WattTime access response had an invalid region",
+                )
+            names.add(region["region"])
+
+    return frozenset(names)
+
+
+async def watttime_get_access_regions() -> frozenset[str]:
+    """Return the cached set of regions enabled for the current WattTime account."""
+    global _cached_access_regions, _cached_access_expires_at
+    if (
+        _cached_access_regions is not None
+        and time.monotonic() < _cached_access_expires_at
+    ):
+        return _cached_access_regions
+
+    async with _access_lock:
+        if (
+            _cached_access_regions is not None
+            and time.monotonic() < _cached_access_expires_at
+        ):
+            return _cached_access_regions
+
+        token = await watttime_get_token()
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get(
+                "https://api.watttime.org/v3/my-access",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "WattTime access lookup failed "
+                    f"(HTTP {response.status_code})"
+                ),
+            )
+        try:
+            regions = _parse_access_regions(response.json())
+        except ValueError as error:
+            raise HTTPException(
+                status_code=502,
+                detail="WattTime access response was not valid JSON",
+            ) from error
+
+        _cached_access_regions = regions
+        _cached_access_expires_at = (
+            time.monotonic() + _ACCESS_CACHE_TTL_SECONDS
+        )
+        return regions
+
+
+async def _ensure_watttime_region_access(region: str) -> None:
+    allowed_regions = await watttime_get_access_regions()
+    if region not in allowed_regions:
+        raise HTTPException(
+            status_code=403,
+            detail="WattTime account does not have access to this region",
+        )
+
+
 async def watttime_signal(region: str) -> dict[str, str | float | None]:
+    await _ensure_watttime_region_access(region)
     token = await watttime_get_token()
     async with httpx.AsyncClient(timeout=15) as client:
         response = await client.get(
@@ -107,6 +209,7 @@ async def watttime_signal(region: str) -> dict[str, str | float | None]:
 
 async def watttime_get_moer(region: str) -> float | None:
     """Fetch marginal emissions (MOER) from WattTime."""
+    await _ensure_watttime_region_access(region)
     token = await watttime_get_token()
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -148,6 +251,7 @@ async def watttime_get_moer(region: str) -> float | None:
 
 
 async def watttime_forecast(region: str) -> list[dict[str, str | float]]:
+    await _ensure_watttime_region_access(region)
     token = await watttime_get_token()
 
     async with httpx.AsyncClient(timeout=20) as client:

@@ -7,6 +7,13 @@ class Settings:
         return os.getenv("ENTSOE_SECURITY_TOKEN")
 
     @property
+    def ENTSOE_ENDPOINT_URL(self):
+        return os.getenv(
+            "ENTSOE_ENDPOINT_URL",
+            "https://web-api.tp.entsoe.eu/api",
+        ) or "https://web-api.tp.entsoe.eu/api"
+
+    @property
     def ELECTRICITYMAPS_API_TOKEN(self):
         return os.getenv("ELECTRICITYMAPS_API_TOKEN")
 
@@ -14,8 +21,8 @@ class Settings:
     def ELECTRICITYMAPS_BASE_URL(self):
         return os.getenv(
             "ELECTRICITYMAPS_BASE_URL",
-            "https://api.electricitymap.org/v3",
-        )
+            "https://api.electricitymaps.com/v3",
+        ) or "https://api.electricitymaps.com/v3"
 
     @property
     def WATTTIME_USERNAME(self):

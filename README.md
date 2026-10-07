@@ -106,7 +106,8 @@ when the backend process restarts.
 Electricity Maps is attempted first for its explicitly mapped regions, followed
 by WattTime, ENTSO-E, and the UK Carbon Intensity API where applicable. Set
 `ELECTRICITYMAPS_API_TOKEN` on the backend; `ELECTRICITYMAPS_BASE_URL` defaults
-to `https://api.electricitymap.org/v3`. Its returned `datetime` is used for
+to `https://api.electricitymaps.com/v3`. Requests authenticate with the
+`auth-token` header. Its returned `datetime` is used for
 freshness status rather than the time GreenNeural fetched the response.
 Electricity Maps zones currently cover the mapped AWS, Azure, and GCP regions
 declared in `backend/app/config/electricitymaps_regions.py`.
@@ -118,6 +119,10 @@ US balancing authorities. Live signals try WattTime, then ENTSO-E, then the UK
 Carbon Intensity API for configured GB regions. Regions without a matching
 source remain unavailable; unsupported regions and aliases are not assigned
 another region's grid.
+WattTime region requests are checked against `/v3/my-access` (cached for five
+minutes) and only regions enabled for the `co2_moer` signal are queried. ENTSO-E
+requests use `https://web-api.tp.entsoe.eu/api` by default; `ENTSOE_ENDPOINT_URL`
+can override it.
 
 ### Frontend
 
@@ -150,4 +155,4 @@ Build Command: pip install -r requirements.txt
 Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-Set `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_SECURITY_TOKEN`, `ELECTRICITYMAPS_API_TOKEN`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Railway variables as needed by the enabled providers. `ELECTRICITYMAPS_BASE_URL` is optional and defaults to `https://api.electricitymap.org/v3`. The backend reads configuration directly from the process environment and never loads `.env` files. `GET /debug/env` reports only whether the WattTime, ENTSO-E, and Electricity Maps credentials are set; it deliberately never returns their values. The homepage source diagnostics report missing variable names and provider errors. The Pro time-to-clean forecast and member-only Daily Upgrade Log endpoints verify signed-in Supabase access tokens using the latter two settings. Electricity Maps, WattTime, UK grid, and ENTSO-E sources are used where configured; any unavailable provider signals are surfaced as unavailable rather than presented as live. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.
+Set `WATTTIME_USERNAME`, `WATTTIME_PASSWORD`, `ENTSOE_SECURITY_TOKEN`, `ELECTRICITYMAPS_API_TOKEN`, `OWM_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` in Railway variables as needed by the enabled providers. `ENTSOE_ENDPOINT_URL` is optional and defaults to `https://web-api.tp.entsoe.eu/api`; `ELECTRICITYMAPS_BASE_URL` is optional and defaults to `https://api.electricitymaps.com/v3`. The backend reads configuration directly from the process environment and never loads `.env` files. `GET /debug/env` reports only whether the WattTime, ENTSO-E, and Electricity Maps credentials are set; it deliberately never returns their values. The homepage source diagnostics report missing variable names and provider errors. The Pro time-to-clean forecast and member-only Daily Upgrade Log endpoints verify signed-in Supabase access tokens using the latter two settings. Electricity Maps, WattTime, UK grid, and ENTSO-E sources are used where configured; any unavailable provider signals are surfaced as unavailable rather than presented as live. The backend allows the production Vercel origin and local frontend origin through its CORS middleware.

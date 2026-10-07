@@ -63,8 +63,40 @@ class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(request.args[0], "https://em.example/v3/carbon-intensity/latest")
         self.assertEqual(request.kwargs["params"], {"zone": "GB"})
         self.assertEqual(
-            request.kwargs["headers"]["Authorization"],
-            "Bearer test-token",
+            request.kwargs["headers"]["auth-token"],
+            "test-token",
+        )
+
+    async def test_client_defaults_to_electricity_maps_com_base_url(self):
+        response = MagicMock(status_code=200)
+        response.json.return_value = {
+            "carbonIntensity": 123.45,
+            "datetime": "2026-10-07T09:30:00Z",
+        }
+        client = MagicMock()
+        client.get = AsyncMock(return_value=response)
+        context = MagicMock()
+        context.__aenter__ = AsyncMock(return_value=client)
+        context.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "ELECTRICITYMAPS_API_TOKEN": "test-token",
+                    "ELECTRICITYMAPS_BASE_URL": "",
+                },
+            ),
+            patch(
+                "app.services.electricitymaps_client.httpx.AsyncClient",
+                return_value=context,
+            ),
+        ):
+            await ElectricityMapsClient().get_signal_by_zone("GB")
+
+        self.assertEqual(
+            client.get.await_args.args[0],
+            "https://api.electricitymaps.com/v3/carbon-intensity/latest",
         )
 
     async def test_client_reports_missing_credentials(self):

@@ -23,7 +23,7 @@ class ElectricityMapsClient:
             async with httpx.AsyncClient(timeout=10) as client:
                 response = await client.get(
                     f"{base_url}/carbon-intensity/latest",
-                    headers={"Authorization": f"Bearer {token}"},
+                    headers={"auth-token": token},
                     params={"zone": zone},
                 )
         except httpx.HTTPError as error:

@@ -3,7 +3,7 @@ import httpx
 from datetime import datetime
 from typing import Optional
 
-ENTSOE_BASE_URL = "https://external-api.tp.entsoe.eu/api"
+from app.config.settings import settings
 
 
 class EntsoeClient:
@@ -30,7 +30,7 @@ class EntsoeClient:
         }
 
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(ENTSOE_BASE_URL, params=params)
+            resp = await client.get(settings.ENTSOE_ENDPOINT_URL, params=params)
             resp.raise_for_status()
             xml = resp.text
 
