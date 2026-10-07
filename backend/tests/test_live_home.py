@@ -246,31 +246,38 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(
             live_home.compute_status(
-                (now - timedelta(hours=1)).isoformat(),
+                (now - timedelta(hours=2)).isoformat(),
                 now=now,
             ),
             "live",
         )
         self.assertEqual(
             live_home.compute_status(
-                (now - timedelta(hours=1, seconds=1)).isoformat(),
+                (now - timedelta(hours=2, seconds=1)).isoformat(),
                 now=now,
             ),
-            "delayed",
+            "limited",
         )
         self.assertEqual(
             live_home.compute_status(
-                (now - timedelta(hours=3)).isoformat(),
+                (now - timedelta(hours=4)).isoformat(),
                 now=now,
             ),
-            "delayed",
+            "limited",
         )
         self.assertEqual(
             live_home.compute_status(
-                (now - timedelta(hours=3, seconds=1)).isoformat(),
+                (now - timedelta(hours=4, seconds=1)).isoformat(),
                 now=now,
             ),
             "stale",
+        )
+        self.assertEqual(
+            live_home.compute_status(
+                (now - timedelta(minutes=54)).isoformat(),
+                now=now,
+            ),
+            "live",
         )
         self.assertEqual(
             live_home.compute_status(

@@ -27,8 +27,8 @@ def freshness_status(
 
     if age_seconds < 0:
         return "forecast"
-    if age_seconds <= 60 * 60:
+    if age_seconds <= 2 * 60 * 60:
         return "live"
-    if age_seconds <= 3 * 60 * 60:
-        return "delayed"
+    if age_seconds <= 4 * 60 * 60:
+        return "limited"
     return "stale"

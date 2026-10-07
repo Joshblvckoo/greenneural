@@ -49,7 +49,8 @@ def build_region_diagnostics(
             reading = readings.get((provider, region), {})
             available = (
                 reading.get("intensity") is not None
-                and reading.get("status") in {"live", "delayed", "stale", "forecast"}
+                and reading.get("status")
+                in {"live", "delayed", "limited", "stale", "forecast"}
             )
             if eligible_sources:
                 mapped_count += 1

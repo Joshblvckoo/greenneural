@@ -1,6 +1,7 @@
 export type SignalStatus =
   | "live"
   | "delayed"
+  | "limited"
   | "stale"
   | "forecast"
   | "fallback"

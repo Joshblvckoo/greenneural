@@ -91,7 +91,7 @@ def compute_status(
 
 def _combined_status(signals: list[dict[str, Any]]) -> str:
     statuses = {signal["status"] for signal in signals}
-    for status in ("stale", "delayed", "forecast", "live"):
+    for status in ("stale", "limited", "delayed", "forecast", "live"):
         if status in statuses:
             return status
     return "unavailable"
@@ -109,7 +109,7 @@ def build_provider_health(
         signal
         for signal in checked_signals
         if signal.get("intensity") is not None
-        and signal.get("status") in {"live", "delayed", "stale", "forecast"}
+        and signal.get("status") in {"live", "delayed", "limited", "stale", "forecast"}
     ]
     checked = len(checked_signals)
     if not available:
@@ -181,7 +181,7 @@ def _unique_grid_signals(
         signal
         for signal in region_signals
         if signal.get("intensity") is not None
-        and signal.get("status") in {"live", "delayed", "stale", "forecast"}
+        and signal.get("status") in {"live", "delayed", "limited", "stale", "forecast"}
     ]
     unique_grids: dict[str, dict[str, Any]] = {}
     for signal in observed:
@@ -534,7 +534,7 @@ async def _build_live_home() -> dict[str, Any]:
         source_readings = [
             signal for signal in source_signals
             if signal["intensity"] is not None
-            and signal["status"] in {"live", "delayed", "stale", "forecast"}
+            and signal["status"] in {"live", "delayed", "limited", "stale", "forecast"}
         ]
         timestamps = [
             timestamp for signal in source_readings
@@ -599,7 +599,7 @@ async def _build_live_home() -> dict[str, Any]:
 
     observed = [
         signal for signal in signals
-        if signal["status"] in {"live", "delayed", "stale", "forecast"}
+        if signal["status"] in {"live", "delayed", "limited", "stale", "forecast"}
         and signal["intensity"] is not None
     ]
     for signal in observed:
@@ -615,7 +615,11 @@ async def _build_live_home() -> dict[str, Any]:
     global_observed = _unique_grid_signals(signals)
 
     cleanest_regions = sorted(
-        (signal for signal in global_observed if signal["status"] in {"live", "delayed"}),
+        (
+            signal
+            for signal in global_observed
+            if signal["status"] in {"live", "delayed", "limited"}
+        ),
         key=lambda signal: signal["intensity"],
     )[:10]
     cleanest_regions = [
