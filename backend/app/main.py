@@ -40,12 +40,14 @@ app.add_middleware(
 from app.api.v1.carbon.routes import router as carbon_router
 from app.api.v1.home import router as home_router
 from app.api.v1.home_forecast import router as home_forecast_router
+from app.api.v1.signals import router as signals_router
 from app.api.v1.diagnostics import router as diagnostics_router
 from app.api.v1.upgrade_log import router as upgrade_log_router
 
 app.include_router(carbon_router, prefix="/api/v1")
 app.include_router(home_router, prefix="/api/v1")
 app.include_router(home_forecast_router, prefix="/api/v1")
+app.include_router(signals_router, prefix="/api/v1")
 app.include_router(diagnostics_router, prefix="/api/v1")
 app.include_router(upgrade_log_router, prefix="/api/v1")
 

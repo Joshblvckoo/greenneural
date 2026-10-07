@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import Link from "next/link";
 import { ArrowRight, MapPinned, Sparkles } from "lucide-react";
+import CleanestRegionBanner from "./CleanestRegionBanner";
 import CleanestRegionLeaderboard from "./CleanestRegionLeaderboard";
 import CoverageMap from "./CoverageMap";
 import GlobalCarbonSnapshot from "./GlobalCarbonSnapshot";
@@ -20,6 +21,7 @@ const HomePage: FC = () => {
     <>
     <section className="relative isolate overflow-hidden border-b border-emerald-900/10 bg-gradient-to-br from-[#f4fbf6] via-white to-emerald-50 px-6 py-20 dark:border-emerald-300/10 dark:from-[#07120f] dark:via-[#0b1914] dark:to-[#10281d] sm:py-28 lg:px-10">
       <div className="pointer-events-none absolute -right-24 -top-24 -z-10 h-96 w-96 rounded-full bg-emerald-300/25 blur-3xl dark:bg-emerald-400/10" />
+      <CleanestRegionBanner />
       <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <div>
           <p className="inline-flex items-center gap-2 rounded-full border border-emerald-700/15 bg-white/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800 dark:border-emerald-200/15 dark:bg-white/5 dark:text-emerald-200">
