@@ -3,7 +3,8 @@ import httpx
 from datetime import datetime
 from typing import Optional
 
-ENTSOE_BASE_URL = "https://web-api.tp.entsoe.eu/api"
+ENTSOE_BASE_URL = "https://external-api.tp.entsoe.eu/api"
+
 
 class EntsoeClient:
     def __init__(self) -> None:
