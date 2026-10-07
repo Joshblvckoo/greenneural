@@ -82,9 +82,9 @@ The public homepage reads its aggregated live signal surface from
 source errors, scheduler status, and mapping/availability details for every
 region in `app/config/regions.py`. The API includes region-level signals as
 well as global and provider aggregates.
-`GET /api/v1/signals/cleanest` returns the cleanest eligible region and the
-global top three across AWS, Azure, and GCP, including each reading's source
-update timestamp. The homepage banner polls this endpoint every five minutes.
+`GET /api/v1/signals/cleanest` returns only the single cleanest eligible region
+across AWS, Azure, and GCP, including its source update timestamp. The homepage
+banner polls this endpoint every five minutes.
 
 An application-lifespan task refreshes the shared live snapshot every five
 minutes, and the API cache uses the same interval. The client may poll every 30

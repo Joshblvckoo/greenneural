@@ -70,60 +70,6 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-    def test_global_cleanest_top_three_ranks_across_all_providers(self):
-        ranked = live_home.global_cleanest_top_regions(
-            [
-                {
-                    "provider": "aws",
-                    "region": "us-west-1",
-                    "intensity": 68.0,
-                    "updated_at": "2026-10-07T10:00:00Z",
-                    "status": "live",
-                },
-                {
-                    "provider": "azure",
-                    "region": "westus",
-                    "intensity": 70.0,
-                    "updated_at": "2026-10-07T10:01:00Z",
-                    "status": "live",
-                },
-                {
-                    "provider": "gcp",
-                    "region": "us-west1",
-                    "intensity": 72.0,
-                    "updated_at": "2026-10-07T10:02:00Z",
-                    "status": "limited",
-                },
-                {
-                    "provider": "aws",
-                    "region": "us-east-1",
-                    "intensity": 80.0,
-                    "updated_at": "2026-10-07T10:03:00Z",
-                    "status": "live",
-                },
-                {
-                    "provider": "gcp",
-                    "region": "europe-west1",
-                    "intensity": 1.0,
-                    "updated_at": "2026-10-07T05:00:00Z",
-                    "status": "stale",
-                },
-            ]
-        )
-
-        self.assertEqual(
-            [
-                (region["provider"], region["region"], region["intensity"])
-                for region in ranked
-            ],
-            [
-                ("aws", "us-west-1", 68.0),
-                ("azure", "westus", 70.0),
-                ("gcp", "us-west1", 72.0),
-            ],
-        )
-        self.assertTrue(all("updated_at" in region for region in ranked))
-
     def test_global_cleanest_region_excludes_stale_and_unavailable_readings(self):
         cleanest = live_home.global_cleanest_region(
             [
@@ -663,23 +609,13 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["global_signal"]["sources"], ["ENTSO-E", "WattTime"])
         self.assertEqual(result["global_signal"]["status"], "live")
         self.assertEqual(result["global_signal"]["latency_ms"], 18.0)
-        self.assertEqual(result["cleanest_regions"][0]["region"], "europe-west1")
-        self.assertEqual(
-            [
-                (region["provider"], region["region"], region["intensity"])
-                for region in result["global_cleanest_top3"]
-            ],
-            [
-                ("gcp", "europe-west1", 100.0),
-                ("aws", "us-east-1", 200.0),
-            ],
-        )
         self.assertEqual(
             result["cleanest_global"],
             {
                 "provider": "gcp",
                 "region": "europe-west1",
                 "intensity": 100.0,
+                "updated_at": now,
             },
         )
         self.assertEqual(result["generation_mix"]["mix"]["wind"], 60.0)
@@ -729,7 +665,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result["global_signal"]["intensity"])
         self.assertEqual(result["global_signal"]["sources"], [])
         self.assertEqual(result["global_signal"]["regions_included"], 0)
-        self.assertEqual(result["cleanest_regions"], [])
+        self.assertIsNone(result["cleanest_global"])
         self.assertEqual(result["provider_health"]["aws"]["status"], "unavailable")
 
     async def test_partial_global_signal_reports_source_outages(self):

@@ -2,7 +2,6 @@ import type { FC } from "react";
 import Link from "next/link";
 import { ArrowRight, MapPinned, Sparkles } from "lucide-react";
 import CleanestRegionBanner from "./CleanestRegionBanner";
-import CleanestRegionLeaderboard from "./CleanestRegionLeaderboard";
 import CoverageMap from "./CoverageMap";
 import GlobalCarbonSnapshot from "./GlobalCarbonSnapshot";
 import LiveGenerationMix from "./LiveGenerationMix";
@@ -99,10 +98,6 @@ const HomePage: FC = () => {
       <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-2">
         <GlobalCarbonSnapshot
           signal={data?.global_signal ?? null}
-          loading={loading}
-        />
-        <CleanestRegionLeaderboard
-          entries={data?.global_cleanest_top3 ?? null}
           loading={loading}
         />
       </div>

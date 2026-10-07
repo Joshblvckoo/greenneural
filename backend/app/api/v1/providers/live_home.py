@@ -97,37 +97,24 @@ def _combined_status(signals: list[dict[str, Any]]) -> str:
     return "unavailable"
 
 
-def global_cleanest_top_regions(
+def global_cleanest_region(
     all_regions: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> dict[str, Any] | None:
     usable = [
         region
         for region in all_regions
         if region.get("intensity") is not None
         and region.get("status") in {"live", "delayed", "limited"}
     ]
-    ranked = sorted(usable, key=lambda region: float(region["intensity"]))
-    return [
-        {
-            key: value
-            for key, value in region.items()
-            if not key.startswith("_")
-        }
-        for region in ranked[:3]
-    ]
-
-
-def global_cleanest_region(
-    all_regions: list[dict[str, Any]],
-) -> dict[str, Any] | None:
-    top_regions = global_cleanest_top_regions(all_regions)
-    if not top_regions:
+    if not usable:
         return None
-    cleanest = top_regions[0]
+
+    cleanest = min(usable, key=lambda region: float(region["intensity"]))
     return {
         "provider": cleanest["provider"],
         "region": cleanest["region"],
         "intensity": cleanest["intensity"],
+        "updated_at": cleanest.get("updated_at"),
     }
 
 
@@ -646,30 +633,7 @@ async def _build_live_home() -> dict[str, Any]:
         signal["trend"] = _trend(delta)
 
     global_signal = build_global_signal(signals)
-    global_observed = _unique_grid_signals(signals)
-    cleanest_global_top3 = global_cleanest_top_regions(signals)
-    cleanest_global = (
-        {
-            "provider": cleanest_global_top3[0]["provider"],
-            "region": cleanest_global_top3[0]["region"],
-            "intensity": cleanest_global_top3[0]["intensity"],
-        }
-        if cleanest_global_top3
-        else None
-    )
-
-    cleanest_regions = sorted(
-        (
-            signal
-            for signal in global_observed
-            if signal["status"] in {"live", "delayed", "limited"}
-        ),
-        key=lambda signal: signal["intensity"],
-    )[:10]
-    cleanest_regions = [
-        {key: value for key, value in signal.items() if not key.startswith("_")}
-        for signal in cleanest_regions
-    ]
+    cleanest_global = global_cleanest_region(signals)
 
     provider_health: dict[str, Any] = {}
     for provider in REGIONS:
@@ -692,9 +656,7 @@ async def _build_live_home() -> dict[str, Any]:
             }
             for signal in signals
         ],
-        "cleanest_regions": cleanest_regions,
         "cleanest_global": cleanest_global,
-        "global_cleanest_top3": cleanest_global_top3,
         "provider_health": provider_health,
         "source_health": source_health,
         "generation_mix": generation_mix,

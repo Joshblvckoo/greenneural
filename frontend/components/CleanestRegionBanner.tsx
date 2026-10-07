@@ -12,7 +12,6 @@ type CleanestRegion = {
 
 type CleanestResponse = {
   cleanest: CleanestRegion | null;
-  top3: CleanestRegion[];
 };
 
 function formatUpdatedAt(updatedAt: string | null) {
