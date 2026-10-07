@@ -97,6 +97,26 @@ def _combined_status(signals: list[dict[str, Any]]) -> str:
     return "unavailable"
 
 
+def global_cleanest_region(
+    all_regions: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    usable = [
+        region
+        for region in all_regions
+        if region.get("intensity") is not None
+        and region.get("status") in {"live", "delayed", "limited"}
+    ]
+    if not usable:
+        return None
+
+    cleanest = min(usable, key=lambda region: float(region["intensity"]))
+    return {
+        "provider": cleanest["provider"],
+        "region": cleanest["region"],
+        "intensity": cleanest["intensity"],
+    }
+
+
 def build_provider_health(
     provider: str,
     region_signals: list[dict[str, Any]],
@@ -613,6 +633,7 @@ async def _build_live_home() -> dict[str, Any]:
 
     global_signal = build_global_signal(signals)
     global_observed = _unique_grid_signals(signals)
+    cleanest_global = global_cleanest_region(signals)
 
     cleanest_regions = sorted(
         (
@@ -649,6 +670,7 @@ async def _build_live_home() -> dict[str, Any]:
             for signal in signals
         ],
         "cleanest_regions": cleanest_regions,
+        "cleanest_global": cleanest_global,
         "provider_health": provider_health,
         "source_health": source_health,
         "generation_mix": generation_mix,

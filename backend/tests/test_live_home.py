@@ -38,6 +38,59 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
     def test_trend_is_unknown_without_enough_history(self):
         self.assertEqual(live_home._trend(None), "unknown")
 
+    def test_global_cleanest_region_compares_all_providers(self):
+        cleanest = live_home.global_cleanest_region(
+            [
+                {
+                    "provider": "aws",
+                    "region": "us-east-1",
+                    "intensity": 90.0,
+                    "status": "live",
+                },
+                {
+                    "provider": "azure",
+                    "region": "westeurope",
+                    "intensity": 42.0,
+                    "status": "limited",
+                },
+                {
+                    "provider": "gcp",
+                    "region": "europe-west1",
+                    "intensity": 61.0,
+                    "status": "live",
+                },
+            ]
+        )
+
+        self.assertEqual(
+            cleanest,
+            {
+                "provider": "azure",
+                "region": "westeurope",
+                "intensity": 42.0,
+            },
+        )
+
+    def test_global_cleanest_region_excludes_stale_and_unavailable_readings(self):
+        cleanest = live_home.global_cleanest_region(
+            [
+                {
+                    "provider": "aws",
+                    "region": "us-east-1",
+                    "intensity": 10.0,
+                    "status": "stale",
+                },
+                {
+                    "provider": "gcp",
+                    "region": "europe-west1",
+                    "intensity": None,
+                    "status": "unavailable",
+                },
+            ]
+        )
+
+        self.assertIsNone(cleanest)
+
     def test_provider_health_summarizes_regions_and_history_trend(self):
         health = live_home.build_provider_health(
             "aws",
