@@ -5,10 +5,19 @@ import type { LiveSignal } from "./liveHomeTypes";
 
 type Props = {
   entries: LiveSignal[] | null;
+  cleanestGlobal: {
+    provider: string;
+    region: string;
+    intensity: number;
+  } | null;
   loading: boolean;
 };
 
-export default function CleanestRegionLeaderboard({ entries, loading }: Props) {
+export default function CleanestRegionLeaderboard({
+  entries,
+  cleanestGlobal,
+  loading,
+}: Props) {
   return (
     <section className="rounded-3xl border border-emerald-900/10 bg-white p-6 dark:border-white/10 dark:bg-[#0d1d18] sm:p-8">
       <div className="flex items-start gap-3">
@@ -26,6 +35,29 @@ export default function CleanestRegionLeaderboard({ entries, loading }: Props) {
           </h2>
         </div>
       </div>
+
+      {cleanestGlobal && (
+        <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-50 p-4 dark:bg-emerald-400/[0.06]">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-800 dark:text-emerald-200">
+            Cleanest across AWS, Azure &amp; GCP
+          </p>
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="font-semibold text-slate-900 dark:text-white">
+              {cleanestGlobal.provider.toUpperCase()} · {cleanestGlobal.region}
+            </p>
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+              <SignalValue
+                value={cleanestGlobal.intensity}
+                trend={undefined}
+                updatedAt={null}
+              />
+              <span className="ml-1 text-xs font-normal text-slate-500 dark:text-white/50">
+                gCO₂/kWh
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
 
       {loading && !entries ? (
         <p className="mt-6 text-sm text-slate-500 dark:text-white/50" role="status">

@@ -47,6 +47,11 @@ export type LiveHomeResponse = {
   };
   region_signals: RegionLiveSignal[];
   cleanest_regions: LiveSignal[];
+  cleanest_global: {
+    provider: string;
+    region: string;
+    intensity: number;
+  } | null;
   provider_health: Record<string, {
     average_intensity: number | null;
     trend: SignalTrend;
