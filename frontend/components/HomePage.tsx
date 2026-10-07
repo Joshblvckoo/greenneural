@@ -100,8 +100,7 @@ const HomePage: FC = () => {
           loading={loading}
         />
         <CleanestRegionLeaderboard
-          entries={data?.cleanest_regions ?? null}
-          cleanestGlobal={data?.cleanest_global ?? null}
+          entries={data?.global_cleanest_top3 ?? null}
           loading={loading}
         />
       </div>

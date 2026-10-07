@@ -5,17 +5,11 @@ import type { LiveSignal } from "./liveHomeTypes";
 
 type Props = {
   entries: LiveSignal[] | null;
-  cleanestGlobal: {
-    provider: string;
-    region: string;
-    intensity: number;
-  } | null;
   loading: boolean;
 };
 
 export default function CleanestRegionLeaderboard({
   entries,
-  cleanestGlobal,
   loading,
 }: Props) {
   return (
@@ -28,36 +22,13 @@ export default function CleanestRegionLeaderboard({
         />
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
-            Live and delayed readings only
+            Global top 3 · AWS, Azure &amp; GCP
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
-            Cleanest regions right now
+            Cleanest regions across providers
           </h2>
         </div>
       </div>
-
-      {cleanestGlobal && (
-        <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-50 p-4 dark:bg-emerald-400/[0.06]">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-800 dark:text-emerald-200">
-            Cleanest across AWS, Azure &amp; GCP
-          </p>
-          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
-            <p className="font-semibold text-slate-900 dark:text-white">
-              {cleanestGlobal.provider.toUpperCase()} · {cleanestGlobal.region}
-            </p>
-            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-              <SignalValue
-                value={cleanestGlobal.intensity}
-                trend={undefined}
-                updatedAt={null}
-              />
-              <span className="ml-1 text-xs font-normal text-slate-500 dark:text-white/50">
-                gCO₂/kWh
-              </span>
-            </p>
-          </div>
-        </div>
-      )}
 
       {loading && !entries ? (
         <p className="mt-6 text-sm text-slate-500 dark:text-white/50" role="status">
@@ -104,7 +75,7 @@ export default function CleanestRegionLeaderboard({
         </ol>
       ) : (
         <p className="mt-6 text-sm text-slate-500 dark:text-white/50">
-          No live or delayed regional readings are available.
+          No recent regional readings are available for the global ranking.
         </p>
       )}
       <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-white/40">

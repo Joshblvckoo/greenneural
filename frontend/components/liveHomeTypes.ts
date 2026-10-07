@@ -47,6 +47,7 @@ export type LiveHomeResponse = {
   };
   region_signals: RegionLiveSignal[];
   cleanest_regions: LiveSignal[];
+  global_cleanest_top3: LiveSignal[];
   cleanest_global: {
     provider: string;
     region: string;
