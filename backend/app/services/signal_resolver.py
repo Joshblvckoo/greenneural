@@ -41,17 +41,7 @@ async def resolve_signal(provider: str, region: str, sources: dict) -> dict:
                 "status": signal.get("status", "live"),
             }
 
-    # 2. WattTime (US)
-    ba = resolve_watttime(provider, region)
-    if ba and sources.get("wattime"):
-        moer = await _read_source(
-            "WattTime",
-            lambda: sources["wattime"].get_moer(ba),
-        )
-        if moer is not None:
-            return {"intensity_index": moer, "source": "WattTime", "status": "live"}
-
-    # 3. ENTSO-E (EU)
+    # 2. ENTSO-E (EU)
     zone = resolve_entsoe(provider, region)
     if zone and sources.get("entsoe"):
         ci = await _read_source(
@@ -60,6 +50,16 @@ async def resolve_signal(provider: str, region: str, sources: dict) -> dict:
         )
         if ci is not None:
             return {"intensity": ci, "source": "ENTSO-E", "status": "live"}
+
+    # 3. WattTime (US)
+    ba = resolve_watttime(provider, region)
+    if ba and sources.get("wattime"):
+        moer = await _read_source(
+            "WattTime",
+            lambda: sources["wattime"].get_moer(ba),
+        )
+        if moer is not None:
+            return {"intensity_index": moer, "source": "WattTime", "status": "live"}
 
     # 4. UK CI (GB proxies)
     if (

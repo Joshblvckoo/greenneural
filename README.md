@@ -107,7 +107,7 @@ enough in-process readings; it is marked `unknown` while warming up and resets
 when the backend process restarts.
 
 Electricity Maps is attempted first for its explicitly mapped regions, followed
-by WattTime, ENTSO-E, and the UK Carbon Intensity API where applicable. Set
+by ENTSO-E, WattTime, and the UK Carbon Intensity API where applicable. Set
 `ELECTRICITYMAPS_API_TOKEN` on the backend; `ELECTRICITYMAPS_BASE_URL` defaults
 to `https://api.electricitymaps.com/v3`. Requests authenticate with the
 `auth-token` header. Its returned `datetime` is used for
@@ -118,7 +118,7 @@ declared in `backend/app/config/electricitymaps_regions.py`.
 `backend/app/config/grid_resolver.py` provides the shared provider/region
 resolvers for the provider-specific maps in `entsoe_regions.py` and
 `watttime_regions.py`. ENTSO-E maps European regions and WattTime maps supported
-US balancing authorities. Live signals try WattTime, then ENTSO-E, then the UK
+US balancing authorities. Live signals try ENTSO-E before WattTime, then the UK
 Carbon Intensity API for configured GB regions. Regions without a matching
 source remain unavailable; unsupported regions and aliases are not assigned
 another region's grid.

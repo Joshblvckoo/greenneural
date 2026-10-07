@@ -165,6 +165,53 @@ class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(signal["_sources_attempted"], ["Electricity Maps", "WattTime"])
         self.assertIn("Electricity Maps", signal["_source_errors"])
 
+    async def test_live_signal_tries_entsoe_before_watttime_after_electricitymaps(self):
+        timestamp = datetime.now(timezone.utc).isoformat()
+        electricity_maps = AsyncMock(
+            side_effect=HTTPException(
+                status_code=502,
+                detail="Electricity Maps request failed",
+            )
+        )
+        entsoe = AsyncMock(
+            return_value={
+                "value": 91.0,
+                "source": "ENTSO-E",
+                "updated_at": timestamp,
+                "status": "live",
+            }
+        )
+        watt_time = AsyncMock()
+
+        with (
+            patch.object(
+                live_home,
+                "resolve_electricitymaps",
+                return_value="GB",
+            ),
+            patch.object(live_home, "resolve_entsoe", return_value="GB"),
+            patch.object(
+                live_home,
+                "resolve_watttime",
+                return_value="CAISO_NORTH",
+            ),
+            patch.object(
+                live_home._electricitymaps_client,
+                "get_signal_by_zone",
+                electricity_maps,
+            ),
+            patch.object(live_home, "entsoe_live_signal", entsoe),
+            patch.object(live_home, "watttime_signal", watt_time),
+        ):
+            signal = await live_home._get_region_signal("aws", "eu-west-1")
+
+        self.assertEqual(signal["source"], "ENTSO-E")
+        self.assertEqual(
+            signal["_sources_attempted"],
+            ["Electricity Maps", "ENTSO-E"],
+        )
+        watt_time.assert_not_awaited()
+
     async def test_shared_resolver_falls_back_to_watttime_on_electricitymaps_error(self):
         electricity_maps = MagicMock()
         electricity_maps.get_signal_by_zone = AsyncMock(

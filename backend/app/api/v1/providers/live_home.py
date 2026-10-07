@@ -331,14 +331,14 @@ async def _get_region_signal(
                 lambda: _electricitymaps_client.get_signal_by_zone(em_zone),
             )
         )
-    if (ba := resolve_watttime(provider_key, region_key)) is not None:
-        candidates.append(
-            ("WattTime", f"watttime:{ba}", lambda: watttime_signal(ba))
-        )
     if (zone_code := resolve_entsoe(provider_key, region_key)) is not None:
         zone = ENTSOE_ZONE_CODES[zone_code]
         candidates.append(
             ("ENTSO-E", f"entsoe:{zone}", lambda: entsoe_live_signal(zone))
+        )
+    if (ba := resolve_watttime(provider_key, region_key)) is not None:
+        candidates.append(
+            ("WattTime", f"watttime:{ba}", lambda: watttime_signal(ba))
         )
     if region_key in {"eu-west-2", "uksouth", "ukwest", "europe-west2"}:
         candidates.append(
