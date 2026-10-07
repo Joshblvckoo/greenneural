@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.api.v1.providers import entsoe, uk_grid, watttime
-from app.config.settings import settings
+from backend.app.api.v1.providers import entsoe, uk_grid, watttime
+from backend.app.config.settings import settings
 
 
 class ProviderEndpointTests(unittest.IsolatedAsyncioTestCase):
@@ -32,7 +32,7 @@ class ProviderEndpointTests(unittest.IsolatedAsyncioTestCase):
         context.__aexit__ = AsyncMock(return_value=None)
 
         with patch(
-            "app.api.v1.providers.uk_grid.httpx.AsyncClient",
+            "backend.app.api.v1.providers.uk_grid.httpx.AsyncClient",
             return_value=context,
         ):
             result = await uk_grid.uk_signal(region_id=13)
@@ -63,7 +63,7 @@ class ProviderEndpointTests(unittest.IsolatedAsyncioTestCase):
                 },
             ),
             patch(
-                "app.api.v1.providers.entsoe.httpx.AsyncClient",
+                "backend.app.api.v1.providers.entsoe.httpx.AsyncClient",
                 return_value=context,
             ),
         ):

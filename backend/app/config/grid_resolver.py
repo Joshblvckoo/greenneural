@@ -1,14 +1,14 @@
-from app.config.entsoe_regions import (
+from backend.app.config.entsoe_regions import (
     AWS_ENTSOE_MAP,
     AZURE_ENTSOE_MAP,
     GCP_ENTSOE_MAP,
 )
-from app.config.electricitymaps_regions import (
+from backend.app.config.electricitymaps_regions import (
     AWS_ELECTRICITYMAPS_MAP,
     AZURE_ELECTRICITYMAPS_MAP,
     GCP_ELECTRICITYMAPS_MAP,
 )
-from app.config.watttime_regions import (
+from backend.app.config.watttime_regions import (
     AWS_WATTIME_MAP,
     AZURE_WATTIME_MAP,
     GCP_WATTIME_MAP,

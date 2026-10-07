@@ -1,7 +1,9 @@
 US_REGION_MAP = {
-    "eastus": "PJM_ROANOKE",
+    "eastus": "PJM_COMED",
+    "eastus2": "PJM_COMED",
     "westus": "CAISO_NORTH",
-    "westus2": "BPA",
+    "centralus": "SPP_WEST",
+    "southcentralus": "ERCOT_HOUSTON",
 }
 
 

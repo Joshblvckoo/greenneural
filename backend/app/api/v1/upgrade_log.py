@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 
-from app.api.v1.auth import bearer_scheme, get_current_user
+from backend.app.api.v1.auth import bearer_scheme, get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/upgrade-log", tags=["upgrade-log"])

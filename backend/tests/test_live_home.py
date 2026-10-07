@@ -4,17 +4,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.config.grid_resolver import resolve_entsoe, resolve_watttime
-from app.config.uk_regions import resolve_uk_region, resolve_uk_region_id
-from app.api.v1.providers import live_home
-from app.api.v1.providers import forecast
-from app.api.v1.carbon import routes as carbon_routes
-from app.api.v1 import diagnostics as diagnostics_routes
-from app.api.v1.providers.entsoe import _fetch_generation_xml
-from app.api.v1.providers.watttime import watttime_get_token
-from app.config.regions import REGION_MAP
-from app.services import live_signal_scheduler
-from app.main import app, debug_env
+from backend.app.config.grid_resolver import resolve_entsoe, resolve_watttime
+from backend.app.config.uk_regions import resolve_uk_region, resolve_uk_region_id
+from backend.app.api.v1.providers import live_home
+from backend.app.api.v1.providers import forecast
+from backend.app.api.v1.carbon import routes as carbon_routes
+from backend.app.api.v1 import diagnostics as diagnostics_routes
+from backend.app.api.v1.providers.entsoe import _fetch_generation_xml
+from backend.app.api.v1.providers.watttime import watttime_get_token
+from backend.app.api.v1.regions.aws import map_aws_region
+from backend.app.api.v1.regions.azure import map_azure_region
+from backend.app.api.v1.regions.gcp import map_gcp_region
+from backend.app.config.regions import REGION_MAP
+from backend.app.services import live_signal_scheduler
+from backend.app.main import app, debug_env
 
 
 class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
@@ -272,19 +275,36 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("interval_seconds", result["scheduler"])
 
     def test_entsoe_region_mappings_are_provider_specific_and_case_insensitive(self):
-        self.assertEqual(resolve_entsoe("aws", "eu-west-1"), "FR")
-        self.assertEqual(resolve_entsoe("aws", "eu-west-3"), "FR")
-        self.assertEqual(resolve_entsoe("aws", "eu-central-1"), "DE_ENBW")
-        self.assertEqual(resolve_entsoe("aws", "eu-central-2"), "DE_ENBW")
-        self.assertEqual(resolve_entsoe("azure", "germanywestcentral"), "DE_LU")
-        self.assertEqual(resolve_entsoe("gcp", "europe-west6"), "CH")
-        self.assertEqual(resolve_entsoe("gcp", "europe-central2"), "DE_ENBW")
-        self.assertEqual(resolve_entsoe("gcp", "europe-west1"), "BE")
-        self.assertEqual(resolve_entsoe("azure", "polandcentral"), "PL")
+        self.assertEqual(resolve_entsoe("aws", "eu-west-1"), "10YFR-RTE------C")
+        self.assertEqual(resolve_entsoe("aws", "eu-west-3"), "10YFR-RTE------C")
+        self.assertEqual(resolve_entsoe("aws", "eu-central-1"), "10YDE-ENBW-----N")
+        self.assertEqual(resolve_entsoe("aws", "eu-central-2"), "10YDE-ENBW-----N")
+        self.assertEqual(
+            resolve_entsoe("azure", "germanywestcentral"),
+            "10Y1001A1001A63L",
+        )
+        self.assertEqual(resolve_entsoe("gcp", "europe-west6"), "10YCH-SWISSGRIDZ")
+        self.assertEqual(
+            resolve_entsoe("gcp", "europe-central2"),
+            "10YDE-ENBW-----N",
+        )
+        self.assertEqual(resolve_entsoe("gcp", "europe-west1"), "10YBE----------2")
+        self.assertEqual(resolve_entsoe("azure", "northeurope"), "10YDK-1--------W")
+        self.assertEqual(resolve_entsoe("azure", "polandcentral"), "10YPL-AREA-----S")
         self.assertIsNone(resolve_entsoe("aws", "us-east-1"))
         self.assertIsNone(resolve_entsoe("unknown", "europe-west1"))
 
     def test_watttime_region_mappings_are_provider_specific_and_case_insensitive(self):
+        self.assertEqual(map_aws_region("us-east-1"), "PJM_COMED")
+        self.assertEqual(map_aws_region("us-east-2"), "PJM_AEP")
+        self.assertEqual(map_aws_region("us-west-1"), "CAISO_NORTH")
+        self.assertEqual(map_aws_region("us-west-2"), "CAISO_SOUTH")
+        self.assertEqual(map_azure_region("eastus2"), "PJM_COMED")
+        self.assertEqual(map_azure_region("centralus"), "SPP_WEST")
+        self.assertEqual(map_azure_region("southcentralus"), "ERCOT_HOUSTON")
+        self.assertEqual(map_gcp_region("us-east4"), "PJM_COMED")
+        self.assertEqual(map_gcp_region("us-central1"), "MISO_WUMS")
+        self.assertEqual(map_gcp_region("us-west2"), "CAISO_SOUTH")
         self.assertEqual(resolve_watttime("aws", "us-east-1"), "PJM_COMED")
         self.assertEqual(resolve_watttime("aws", "us-east-2"), "PJM_AEP")
         self.assertEqual(resolve_watttime("aws", "us-west-1"), "CAISO_NORTH")
@@ -392,7 +412,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.dict("os.environ", {"ENTSOE_SECURITY_TOKEN": "test-token"}),
             patch(
-                "app.api.v1.providers.entsoe.httpx.AsyncClient",
+                "backend.app.api.v1.providers.entsoe.httpx.AsyncClient",
                 return_value=client_context,
             ),
         ):

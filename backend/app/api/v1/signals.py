@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from app.api.v1.providers.live_home import compute_live_home
+from backend.app.api.v1.providers.live_home import compute_live_home
 
 
 router = APIRouter(prefix="/signals", tags=["signals"])

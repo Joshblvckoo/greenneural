@@ -1,31 +1,7 @@
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Bell, Cloud, Sparkles } from "lucide-react";
-import { supabase } from "../lib/supabaseClient";
 
 export default function MemberFeatures() {
-  const [signedIn, setSignedIn] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    void supabase.auth.getUser().then(({ data, error }) => {
-      if (active) setSignedIn(!error && Boolean(data.user));
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSignedIn(Boolean(session?.user));
-    });
-
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  if (!signedIn) return null;
-
   return (
     <section
       className="mx-auto mt-6 max-w-7xl rounded-3xl border border-emerald-900/10 bg-white p-6 dark:border-white/10 dark:bg-[#0d1d18] sm:p-8"

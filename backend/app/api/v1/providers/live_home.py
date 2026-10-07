@@ -7,19 +7,19 @@ from typing import Any, Awaitable, Callable
 import httpx
 from fastapi import HTTPException
 
-from app.config.grid_resolver import (
+from backend.app.config.grid_resolver import (
     resolve_electricitymaps,
     resolve_entsoe,
     resolve_watttime,
 )
-from app.config.regions import REGION_MAP
-from app.config.uk_regions import resolve_uk_region_id
-from app.config.settings import settings
-from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES, entsoe_live_signal
-from app.services.electricitymaps_client import ElectricityMapsClient
-from app.api.v1.providers.uk_grid import uk_generation_mix, uk_signal
-from app.api.v1.providers.watttime import watttime_signal
-from app.utils.freshness import freshness_status
+from backend.app.config.regions import REGION_MAP
+from backend.app.config.uk_regions import resolve_uk_region_id
+from backend.app.config.settings import settings
+from backend.app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES, entsoe_live_signal
+from backend.app.services.electricitymaps_client import ElectricityMapsClient
+from backend.app.api.v1.providers.uk_grid import uk_generation_mix, uk_signal
+from backend.app.api.v1.providers.watttime import watttime_signal
+from backend.app.utils.freshness import freshness_status
 
 REGIONS = REGION_MAP
 
@@ -328,8 +328,7 @@ async def _get_region_signal(
         candidates.append(
             ("WattTime", f"watttime:{ba}", lambda: watttime_signal(ba))
         )
-    if (zone_code := resolve_entsoe(provider_key, region_key)) is not None:
-        zone = ENTSOE_ZONE_CODES[zone_code]
+    if (zone := resolve_entsoe(provider_key, region_key)) is not None:
         candidates.append(
             ("ENTSO-E", f"entsoe:{zone}", lambda: entsoe_live_signal(zone))
         )

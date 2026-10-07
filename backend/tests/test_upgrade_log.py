@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
-from app.api.v1 import upgrade_log
-from app.main import app
+from backend.app.api.v1 import upgrade_log
+from backend.app.main import app
 
 
 class UpgradeLogTests(unittest.IsolatedAsyncioTestCase):

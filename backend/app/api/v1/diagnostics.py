@@ -2,15 +2,15 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from app.api.v1.providers.live_home import compute_live_home
-from app.config.grid_resolver import (
+from backend.app.api.v1.providers.live_home import compute_live_home
+from backend.app.config.grid_resolver import (
     resolve_electricitymaps,
     resolve_entsoe,
     resolve_watttime,
 )
-from app.config.regions import REGION_MAP
-from app.config.uk_regions import resolve_uk_region_id
-from app.services.live_signal_scheduler import scheduler_status
+from backend.app.config.regions import REGION_MAP
+from backend.app.config.uk_regions import resolve_uk_region_id
+from backend.app.services.live_signal_scheduler import scheduler_status
 
 router = APIRouter()
 def _eligible_sources(provider: str, region: str) -> list[str]:

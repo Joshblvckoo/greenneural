@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
-from app.config.settings import settings
+from backend.app.config.settings import settings
 
 
 class ElectricityMapsClient:

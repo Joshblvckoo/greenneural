@@ -3,8 +3,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from app.api.v1.providers.live_home import compute_live_home
-from app.services.signal_resolver import resolve_signal as resolve_grid_signal
+from backend.app.api.v1.providers.live_home import compute_live_home
+from backend.app.services.signal_resolver import resolve_signal as resolve_grid_signal
 
 logger = logging.getLogger(__name__)
 REFRESH_INTERVAL_SECONDS = 300

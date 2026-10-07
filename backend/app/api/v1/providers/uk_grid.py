@@ -1,7 +1,7 @@
 import httpx
 from fastapi import HTTPException
 
-from app.utils.freshness import freshness_status
+from backend.app.utils.freshness import freshness_status
 
 
 def _uk_status(updated_at: str | None) -> str:

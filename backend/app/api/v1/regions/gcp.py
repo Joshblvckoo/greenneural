@@ -1,7 +1,9 @@
 US_REGION_MAP = {
-    "us-central1": "MISO",
-    "us-east1": "PJM_WEST",
+    "us-central1": "MISO_WUMS",
+    "us-east1": "PJM_COMED",
+    "us-east4": "PJM_COMED",
     "us-west1": "CAISO_NORTH",
+    "us-west2": "CAISO_SOUTH",
 }
 
 

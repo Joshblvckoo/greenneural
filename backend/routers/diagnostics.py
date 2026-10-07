@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.utils.provider_health import provider_health
+from backend.app.utils.provider_health import provider_health
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
 

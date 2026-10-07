@@ -4,12 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.api.v1 import diagnostics
-from app.config.regions import REGION_MAP
-from app.api.v1.providers import live_home
-from app.config.grid_resolver import resolve_electricitymaps
-from app.services.electricitymaps_client import ElectricityMapsClient
-from app.services.signal_resolver import resolve_signal
+from backend.app.api.v1 import diagnostics
+from backend.app.config.regions import REGION_MAP
+from backend.app.api.v1.providers import live_home
+from backend.app.config.grid_resolver import resolve_electricitymaps
+from backend.app.services.electricitymaps_client import ElectricityMapsClient
+from backend.app.services.signal_resolver import resolve_signal
 
 
 class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
@@ -57,7 +57,7 @@ class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
                 },
             ),
             patch(
-                "app.services.electricitymaps_client.httpx.AsyncClient",
+                "backend.app.services.electricitymaps_client.httpx.AsyncClient",
                 return_value=context,
             ),
         ):
@@ -95,7 +95,7 @@ class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
                 },
             ),
             patch(
-                "app.services.electricitymaps_client.httpx.AsyncClient",
+                "backend.app.services.electricitymaps_client.httpx.AsyncClient",
                 return_value=context,
             ),
         ):

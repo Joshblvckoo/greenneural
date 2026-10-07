@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from fastapi import HTTPException
 
-from app.config.settings import settings
-from app.utils.freshness import freshness_status
+from backend.app.config.settings import settings
+from backend.app.utils.freshness import freshness_status
 
 
 ENTSOE_ZONE_CODES = {

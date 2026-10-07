@@ -3,16 +3,16 @@ from datetime import datetime, timezone
 import httpx
 from fastapi import APIRouter, HTTPException
 
-from app.api.v1.providers.uk_grid import get_uk_intensity
-from app.api.v1.providers.watttime import watttime_get_moer
-from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES, entsoe_intensity
-from app.config.grid_resolver import (
+from backend.app.api.v1.providers.uk_grid import get_uk_intensity
+from backend.app.api.v1.providers.watttime import watttime_get_moer
+from backend.app.api.v1.providers.entsoe import entsoe_intensity
+from backend.app.config.grid_resolver import (
     resolve_electricitymaps,
     resolve_entsoe,
     resolve_watttime,
 )
-from app.config.uk_regions import UK_CARBON_INTENSITY_MAP, resolve_uk_region_id
-from app.services.electricitymaps_client import ElectricityMapsClient
+from backend.app.config.uk_regions import UK_CARBON_INTENSITY_MAP, resolve_uk_region_id
+from backend.app.services.electricitymaps_client import ElectricityMapsClient
 
 router = APIRouter(prefix="/carbon")
 _electricitymaps_client = ElectricityMapsClient()
@@ -30,11 +30,11 @@ async def get_carbon_intensity(provider: str, region: str) -> float | None:
 
     if (ba := resolve_watttime(provider, normalized_region)) is not None:
         candidates.append(("WattTime", lambda: watttime_get_moer(ba)))
-    if (zone_code := resolve_entsoe(provider, normalized_region)) is not None:
+    if (zone := resolve_entsoe(provider, normalized_region)) is not None:
         candidates.append(
             (
                 "ENTSO-E",
-                lambda: entsoe_intensity(ENTSOE_ZONE_CODES[zone_code]),
+                lambda: entsoe_intensity(zone),
             )
         )
     if normalized_region in UK_REGION_MAP.get(provider, set()):

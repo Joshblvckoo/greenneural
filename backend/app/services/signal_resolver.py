@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
-from app.config.grid_resolver import (
+from backend.app.config.grid_resolver import (
     resolve_electricitymaps,
     resolve_entsoe,
     resolve_watttime,

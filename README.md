@@ -64,11 +64,10 @@ a provider-backed grid mapping are explicitly diagnosed as unsupported.
 ### Backend
 
 ```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python -m uvicorn main:app --reload --port 8000
+python -m venv backend/.venv
+.\backend\.venv\Scripts\Activate.ps1
+pip install -r backend/requirements.txt
+python -m uvicorn backend.app.main:app --reload --port 8000
 ```
 
 Set required provider variables in the terminal or IDE launch configuration
@@ -80,7 +79,7 @@ The API and OpenAPI docs are available at `http://localhost:8000` and `http://lo
 The public homepage reads its aggregated live signal surface from
 `GET /api/v1/home/live`. `GET /api/v1/diagnostics` reports provider health,
 source errors, scheduler status, and mapping/availability details for every
-region in `app/config/regions.py`. The API includes region-level signals as
+region in `backend/app/config/regions.py`. The API includes region-level signals as
 well as global and provider aggregates.
 `GET /api/v1/signals/cleanest` returns only the single cleanest eligible region
 across AWS, Azure, and GCP, including its source update timestamp. The homepage

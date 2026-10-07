@@ -6,14 +6,13 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
-from app.config.grid_resolver import resolve_entsoe, resolve_watttime
-from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES
-from app.api.v1.providers.entsoe import (
+from backend.app.config.grid_resolver import resolve_entsoe, resolve_watttime
+from backend.app.api.v1.providers.entsoe import (
     entsoe_forecast as fetch_entsoe_forecast,
     entsoe_intensity,
 )
-from app.api.v1.providers.uk_grid import get_uk_intensity, uk_forecast
-from app.api.v1.providers.watttime import watttime_forecast, watttime_get_moer
+from backend.app.api.v1.providers.uk_grid import get_uk_intensity, uk_forecast
+from backend.app.api.v1.providers.watttime import watttime_forecast, watttime_get_moer
 
 UK_REGION_MAP = {
     "aws": {"eu-west-2"},
@@ -66,8 +65,8 @@ def _future_forecast_points(series: list[dict[str, Any]]) -> list[dict[str, Any]
 
 
 async def entsoe_forecast(provider: str, region: str) -> list[dict[str, Any]]:
-    zone_code = resolve_entsoe(provider, region)
-    if not zone_code:
+    zone = resolve_entsoe(provider, region)
+    if not zone:
         raise HTTPException(
             status_code=400,
             detail=(
@@ -75,7 +74,7 @@ async def entsoe_forecast(provider: str, region: str) -> list[dict[str, Any]]:
                 f"{provider}/{region}"
             ),
         )
-    return await fetch_entsoe_forecast(ENTSOE_ZONE_CODES[zone_code])
+    return await fetch_entsoe_forecast(zone)
 
 
 async def _forecast_target(provider: str, region: str) -> dict[str, Any]:
@@ -90,8 +89,7 @@ async def _forecast_target(provider: str, region: str) -> dict[str, Any]:
                 get_uk_intensity(),
                 uk_forecast(),
             )
-        elif (zone_code := resolve_entsoe(provider, region)) is not None:
-            zone = ENTSOE_ZONE_CODES[zone_code]
+        elif (zone := resolve_entsoe(provider, region)) is not None:
             current, series = await asyncio.gather(
                 entsoe_intensity(zone),
                 fetch_entsoe_forecast(zone),

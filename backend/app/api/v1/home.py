@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from app.api.v1.coverage import COVERAGE
-from app.api.v1.providers.live_home import compute_live_home
+from backend.app.api.v1.coverage import COVERAGE
+from backend.app.api.v1.providers.live_home import compute_live_home
 
 router = APIRouter(prefix="/home")
 

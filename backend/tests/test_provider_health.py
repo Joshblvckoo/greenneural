@@ -1,6 +1,6 @@
 import unittest
 
-from app.utils.provider_health import provider_health
+from backend.app.utils.provider_health import provider_health
 
 
 class ProviderHealthTests(unittest.TestCase):

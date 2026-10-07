@@ -1,8 +1,8 @@
 US_REGION_MAP = {
-    "us-east-1": "PJM_ROANOKE",
-    "us-east-2": "PJM_WEST",
-    "us-west-1": "CAISO_SOUTH",
-    "us-west-2": "BPA",
+    "us-east-1": "PJM_COMED",
+    "us-east-2": "PJM_AEP",
+    "us-west-1": "CAISO_NORTH",
+    "us-west-2": "CAISO_SOUTH",
 }
 
 

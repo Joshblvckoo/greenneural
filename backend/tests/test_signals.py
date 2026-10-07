@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from app.api.v1 import signals
-from app.main import app
+from backend.app.api.v1 import signals
+from backend.app.main import app
 
 
 class CleanestSignalsTests(unittest.IsolatedAsyncioTestCase):

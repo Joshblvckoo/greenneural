@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from app.api.v1.carbon.routes import get_carbon_intensity
+from backend.app.api.v1.carbon.routes import get_carbon_intensity
 
 CLOUD_REGIONS = {
     "aws": [

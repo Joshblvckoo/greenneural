@@ -5,8 +5,8 @@ import time
 import httpx
 from fastapi import HTTPException
 
-from app.config.settings import settings
-from app.utils.freshness import freshness_status
+from backend.app.config.settings import settings
+from backend.app.utils.freshness import freshness_status
 
 
 _TOKEN_CACHE_TTL_SECONDS = 25 * 60

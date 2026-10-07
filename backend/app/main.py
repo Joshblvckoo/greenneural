@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.services.live_signal_scheduler import live_signal_refresh_loop
+from backend.app.services.live_signal_scheduler import live_signal_refresh_loop
 
 
 @asynccontextmanager
@@ -37,12 +37,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.api.v1.carbon.routes import router as carbon_router
-from app.api.v1.home import router as home_router
-from app.api.v1.home_forecast import router as home_forecast_router
-from app.api.v1.signals import router as signals_router
-from app.api.v1.diagnostics import router as diagnostics_router
-from app.api.v1.upgrade_log import router as upgrade_log_router
+from backend.app.api.v1.carbon.routes import router as carbon_router
+from backend.app.api.v1.home import router as home_router
+from backend.app.api.v1.home_forecast import router as home_forecast_router
+from backend.app.api.v1.signals import router as signals_router
+from backend.app.api.v1.diagnostics import router as diagnostics_router
+from backend.app.api.v1.upgrade_log import router as upgrade_log_router
 
 app.include_router(carbon_router, prefix="/api/v1")
 app.include_router(home_router, prefix="/api/v1")
@@ -58,7 +58,7 @@ import httpx
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from app.config.cities import CITIES, CITY_COORDS
+from backend.app.config.cities import CITIES, CITY_COORDS
 
 
 @app.get("/")

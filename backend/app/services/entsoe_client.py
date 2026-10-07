@@ -3,7 +3,7 @@ import httpx
 from datetime import datetime
 from typing import Optional
 
-from app.config.settings import settings
+from backend.app.config.settings import settings
 
 
 class EntsoeClient:
