@@ -16,6 +16,7 @@ backend/app/
 │   ├── home.py                     /home and /home/live
 │   ├── diagnostics.py              /diagnostics and region coverage
 │   ├── home_forecast.py            authenticated Time-to-Clean endpoint
+│   ├── upgrade_log.py              authenticated member updates and admin publishing
 │   ├── carbon/routes.py            carbon-intensity endpoints
 │   └── providers/
 │       ├── live_home.py            aggregation, freshness, provider health
@@ -30,6 +31,30 @@ backend/app/
 └── services/
     └── live_signal_scheduler.py    five-minute refresh task
 ```
+
+The member-only Daily Upgrade Log is served by `GET/POST /api/v1/upgrade-log`.
+Apply
+`backend/supabase/migrations/202610070001_daily_upgrade_log.sql` to the
+Supabase project before using the feature. RLS permits authenticated members
+to read entries and only users with the trusted Supabase
+`app_metadata.role = admin` claim to publish. To grant an administrator, set
+that claim from a trusted Supabase admin tool (never from client-editable
+`user_metadata`), for example:
+
+```sql
+update auth.users
+set raw_app_meta_data =
+    coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+where id = '<SUPABASE_AUTH_USER_UUID>';
+```
+
+Have the user sign in again so their refreshed access token contains the
+updated claim. The endpoint forwards the verified user's access token to
+Supabase, so no service-role key is needed.
+
+The homepage displays the member feature card only for a signed-in Supabase
+user. `/updates` asks the backend to validate the access token before returning
+log contents; unauthenticated visitors see a sign-in prompt instead.
 
 `regions.py` is GreenNeural's configured cloud-region inventory; regions without
 a provider-backed grid mapping are explicitly diagnosed as unsupported.

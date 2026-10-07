@@ -21,11 +21,21 @@ _WATTTIME_MAPS = {
 }
 
 
-def resolve_entsoe(provider: str, region: str) -> str | None:
-    provider_map = _ENTSOE_MAPS.get(provider.lower())
-    return provider_map.get(region.lower()) if provider_map else None
+def resolve_entsoe(provider: str, region: str):
+    if provider == "aws":
+        return AWS_ENTSOE_MAP.get(region)
+    if provider == "azure":
+        return AZURE_ENTSOE_MAP.get(region)
+    if provider == "gcp":
+        return GCP_ENTSOE_MAP.get(region)
+    return None
 
 
-def resolve_watttime(provider: str, region: str) -> str | None:
-    provider_map = _WATTTIME_MAPS.get(provider.lower())
-    return provider_map.get(region.lower()) if provider_map else None
+def resolve_watttime(provider: str, region: str):
+    if provider == "aws":
+        return AWS_WATTIME_MAP.get(region)
+    if provider == "azure":
+        return AZURE_WATTIME_MAP.get(region)
+    if provider == "gcp":
+        return GCP_WATTIME_MAP.get(region)
+    return None

@@ -3,6 +3,7 @@ AWS_WATTIME_MAP = {
     "us-east-2": "PJM_WEST",
     "us-west-1": "CAISO_NORTH",
     "us-west-2": "BPA",
+    "us-central-1": "MISO",
 }
 
 AZURE_WATTIME_MAP = {
@@ -21,16 +22,3 @@ GCP_WATTIME_MAP = {
     "us-west2": "BPA",
     "us-central1": "MISO",
 }
-
-_PROVIDER_MAPS = {
-    "aws": AWS_WATTIME_MAP,
-    "azure": AZURE_WATTIME_MAP,
-    "gcp": GCP_WATTIME_MAP,
-}
-
-
-def get_wattime_ba(provider: str, region: str) -> str | None:
-    provider_map = _PROVIDER_MAPS.get(provider.lower())
-    if provider_map is None:
-        return None
-    return provider_map.get(region.lower())

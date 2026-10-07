@@ -6,6 +6,7 @@ import CoverageMap from "./CoverageMap";
 import GlobalCarbonSnapshot from "./GlobalCarbonSnapshot";
 import LiveGenerationMix from "./LiveGenerationMix";
 import LiveSourceHealth from "./LiveSourceHealth";
+import MemberFeatures from "./MemberFeatures";
 import ProviderHealthWidget from "./ProviderHealthWidget";
 import SignalStatusBadge from "./SignalStatusBadge";
 import SignalValue from "./SignalValue";
@@ -78,6 +79,10 @@ const HomePage: FC = () => {
         </div>
       </div>
     </section>
+
+    <div className="bg-[#f7faf8] px-6 pt-6 dark:bg-[#08130f] lg:px-10">
+      <MemberFeatures />
+    </div>
 
     <div className="bg-[#f7faf8] px-6 py-16 dark:bg-[#08130f] sm:py-20 lg:px-10">
       {error && (

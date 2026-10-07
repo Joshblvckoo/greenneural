@@ -15,7 +15,9 @@ export default function LoginForm() {
     event.preventDefault(); setError(""); setLoading(true);
     const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
     if (loginError) { setError(loginError.message); setLoading(false); return; }
-    await router.push("/dashboard");
+    const requestedPath = router.query.next;
+    const destination = requestedPath === "/updates" ? requestedPath : "/dashboard";
+    await router.push(destination);
   }
 
   return <form onSubmit={handleSubmit} className="space-y-5">
