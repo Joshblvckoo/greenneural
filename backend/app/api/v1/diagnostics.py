@@ -9,16 +9,10 @@ from app.config.grid_resolver import (
     resolve_watttime,
 )
 from app.config.regions import REGION_MAP
+from app.config.uk_regions import resolve_uk_region_id
 from app.services.live_signal_scheduler import scheduler_status
 
 router = APIRouter()
-_UK_REGIONS = {
-    "aws": {"eu-west-2"},
-    "azure": {"uksouth", "ukwest"},
-    "gcp": {"europe-west2"},
-}
-
-
 def _eligible_sources(provider: str, region: str) -> list[str]:
     sources = []
     if resolve_electricitymaps(provider, region) is not None:
@@ -27,7 +21,7 @@ def _eligible_sources(provider: str, region: str) -> list[str]:
         sources.append("WattTime")
     if resolve_entsoe(provider, region) is not None:
         sources.append("ENTSO-E")
-    if region in _UK_REGIONS.get(provider, set()):
+    if resolve_uk_region_id(provider, region) is not None:
         sources.append("UK Carbon Intensity API")
     return sources
 

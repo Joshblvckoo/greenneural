@@ -1,9 +1,8 @@
 AWS_ENTSOE_MAP = {
-    "eu-west-1": "IE",
-    "eu-west-2": "GB",
+    "eu-west-1": "FR",
     "eu-west-3": "FR",
-    "eu-central-1": "DE_LU",
-    "eu-central-2": "PL",
+    "eu-central-1": "DE_ENBW",
+    "eu-central-2": "DE_ENBW",
     "eu-north-1": "SE3",
     "eu-south-1": "IT_NORTH",
 }
@@ -11,8 +10,6 @@ AWS_ENTSOE_MAP = {
 AZURE_ENTSOE_MAP = {
     "westeurope": "NL",
     "northeurope": "DK1",
-    "uksouth": "GB",
-    "ukwest": "GB",
     "francecentral": "FR",
     "germanywestcentral": "DE_LU",
     "swedencentral": "SE3",
@@ -21,10 +18,10 @@ AZURE_ENTSOE_MAP = {
 }
 
 GCP_ENTSOE_MAP = {
-    "europe-west1": "FR",
-    "europe-west2": "GB",
+    "europe-west1": "BE",
     "europe-west3": "DE_LU",
     "europe-west4": "NL",
     "europe-west6": "CH",
     "europe-north1": "SE3",
+    "europe-central2": "DE_ENBW",
 }

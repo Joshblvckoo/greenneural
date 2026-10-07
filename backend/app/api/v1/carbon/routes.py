@@ -5,16 +5,21 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.v1.providers.uk_grid import get_uk_intensity
 from app.api.v1.providers.watttime import watttime_get_moer
-from app.config.grid_resolver import resolve_entsoe, resolve_watttime
-from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES
-from app.api.v1.providers.entsoe import get_entsoe_intensity
+from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES, entsoe_intensity
+from app.config.grid_resolver import (
+    resolve_electricitymaps,
+    resolve_entsoe,
+    resolve_watttime,
+)
+from app.config.uk_regions import UK_CARBON_INTENSITY_MAP, resolve_uk_region_id
+from app.services.electricitymaps_client import ElectricityMapsClient
 
 router = APIRouter(prefix="/carbon")
+_electricitymaps_client = ElectricityMapsClient()
 
 UK_REGION_MAP = {
-    "aws": {"eu-west-2"},
-    "azure": {"uksouth", "ukwest"},
-    "gcp": {"europe-west2"},
+    provider: set(regions)
+    for provider, regions in UK_CARBON_INTENSITY_MAP.items()
 }
 
 
@@ -29,11 +34,24 @@ async def get_carbon_intensity(provider: str, region: str) -> float | None:
         candidates.append(
             (
                 "ENTSO-E",
-                lambda: get_entsoe_intensity(ENTSOE_ZONE_CODES[zone_code]),
+                lambda: entsoe_intensity(ENTSOE_ZONE_CODES[zone_code]),
             )
         )
     if normalized_region in UK_REGION_MAP.get(provider, set()):
-        candidates.append(("UK Carbon Intensity API", get_uk_intensity))
+        uk_region_id = resolve_uk_region_id(provider, normalized_region)
+        candidates.append(
+            (
+                "UK Carbon Intensity API",
+                lambda: get_uk_intensity(uk_region_id),
+            )
+        )
+    if (em_zone := resolve_electricitymaps(provider, normalized_region)) is not None:
+        candidates.append(
+            (
+                "Electricity Maps",
+                lambda: _electricitymaps_client.get_intensity_by_zone(em_zone),
+            )
+        )
 
     if not candidates:
         raise HTTPException(

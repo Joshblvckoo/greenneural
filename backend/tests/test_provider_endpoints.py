@@ -4,11 +4,47 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.api.v1.providers import entsoe, watttime
+from app.api.v1.providers import entsoe, uk_grid, watttime
 from app.config.settings import settings
 
 
 class ProviderEndpointTests(unittest.IsolatedAsyncioTestCase):
+    async def test_uk_signal_reads_configured_regional_forecast(self):
+        response = MagicMock(status_code=200)
+        response.json.return_value = {
+            "data": [
+                {
+                    "regionid": 13,
+                    "data": [
+                        {
+                            "from": "2026-10-07T09:00Z",
+                            "to": "2026-10-07T09:30Z",
+                            "intensity": {"forecast": 81, "index": "low"},
+                        }
+                    ],
+                }
+            ]
+        }
+        client = MagicMock()
+        client.get = AsyncMock(return_value=response)
+        context = MagicMock()
+        context.__aenter__ = AsyncMock(return_value=client)
+        context.__aexit__ = AsyncMock(return_value=None)
+
+        with patch(
+            "app.api.v1.providers.uk_grid.httpx.AsyncClient",
+            return_value=context,
+        ):
+            result = await uk_grid.uk_signal(region_id=13)
+
+        self.assertEqual(result["value"], 81.0)
+        self.assertEqual(result["region_id"], 13)
+        self.assertEqual(result["status"], "forecast")
+        self.assertEqual(
+            client.get.await_args.args[0],
+            "https://api.carbonintensity.org.uk/regional/regionid/13",
+        )
+
     async def test_entsoe_uses_configured_web_api_endpoint(self):
         response = MagicMock(status_code=200, text="<Acknowledgement/>")
         client = MagicMock()

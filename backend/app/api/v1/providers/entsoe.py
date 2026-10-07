@@ -12,6 +12,7 @@ ENTSOE_ZONE_CODES = {
     "IE": "10YIE-1001A00010",
     "GB": "10YGB----------A",
     "DE_LU": "10Y1001A1001A63L",
+    "DE_ENBW": "10YDE-ENBW-----N",
     "SE3": "10Y1001A1001A46L",
     "IT_NORTH": "10Y1001A1001A73I",
     "PL": "10YPL-AREA-----S",

@@ -29,8 +29,8 @@ app = FastAPI(title="GreenNeural API", version="1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
         "https://www.thegreenneural.com",
+        "http://localhost:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],

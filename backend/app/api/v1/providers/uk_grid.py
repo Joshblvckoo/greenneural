@@ -9,8 +9,14 @@ def _uk_status(updated_at: str | None) -> str:
     return "delayed" if status == "unavailable" else status
 
 
-async def uk_signal() -> dict[str, str | float]:
-    url = "https://api.carbonintensity.org.uk/intensity"
+async def uk_signal(
+    region_id: int | None = None,
+) -> dict[str, str | int | float]:
+    url = (
+        f"https://api.carbonintensity.org.uk/regional/regionid/{region_id}"
+        if region_id is not None
+        else "https://api.carbonintensity.org.uk/intensity"
+    )
     async with httpx.AsyncClient(timeout=15) as client:
         response = await client.get(url)
     if response.status_code != 200:
@@ -19,7 +25,12 @@ async def uk_signal() -> dict[str, str | float]:
             detail=f"UK carbon intensity request failed (HTTP {response.status_code})",
         )
     try:
-        interval = response.json()["data"][0]
+        response_data = response.json()["data"][0]
+        interval = (
+            response_data["data"][0]
+            if region_id is not None
+            else response_data
+        )
         intensity = interval["intensity"]
         actual = intensity.get("actual")
         value = float(actual if actual is not None else intensity["forecast"])
@@ -37,11 +48,12 @@ async def uk_signal() -> dict[str, str | float]:
         "source": "UK Carbon Intensity API",
         "updated_at": updated_at,
         "status": status,
+        **({"region_id": region_id} if region_id is not None else {}),
     }
 
 
-async def get_uk_intensity() -> float:
-    signal = await uk_signal()
+async def get_uk_intensity(region_id: int | None = None) -> float:
+    signal = await uk_signal(region_id)
     if signal["status"] == "forecast":
         raise HTTPException(
             status_code=502,

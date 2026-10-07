@@ -13,6 +13,7 @@ from app.config.grid_resolver import (
     resolve_watttime,
 )
 from app.config.regions import REGION_MAP
+from app.config.uk_regions import resolve_uk_region_id
 from app.config.settings import settings
 from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES, entsoe_live_signal
 from app.services.electricitymaps_client import ElectricityMapsClient
@@ -323,6 +324,23 @@ async def _get_region_signal(
         tuple[str, str, Callable[[], Awaitable[dict[str, Any] | None]]]
     ] = []
 
+    if (ba := resolve_watttime(provider_key, region_key)) is not None:
+        candidates.append(
+            ("WattTime", f"watttime:{ba}", lambda: watttime_signal(ba))
+        )
+    if (zone_code := resolve_entsoe(provider_key, region_key)) is not None:
+        zone = ENTSOE_ZONE_CODES[zone_code]
+        candidates.append(
+            ("ENTSO-E", f"entsoe:{zone}", lambda: entsoe_live_signal(zone))
+        )
+    if (uk_region_id := resolve_uk_region_id(provider_key, region_key)) is not None:
+        candidates.append(
+            (
+                "UK Carbon Intensity API",
+                f"uk-grid:{uk_region_id}",
+                lambda: uk_signal(uk_region_id),
+            )
+        )
     if (em_zone := resolve_electricitymaps(provider_key, region_key)) is not None:
         candidates.append(
             (
@@ -330,19 +348,6 @@ async def _get_region_signal(
                 f"electricitymaps:{em_zone}",
                 lambda: _electricitymaps_client.get_signal_by_zone(em_zone),
             )
-        )
-    if (zone_code := resolve_entsoe(provider_key, region_key)) is not None:
-        zone = ENTSOE_ZONE_CODES[zone_code]
-        candidates.append(
-            ("ENTSO-E", f"entsoe:{zone}", lambda: entsoe_live_signal(zone))
-        )
-    if (ba := resolve_watttime(provider_key, region_key)) is not None:
-        candidates.append(
-            ("WattTime", f"watttime:{ba}", lambda: watttime_signal(ba))
-        )
-    if region_key in {"eu-west-2", "uksouth", "ukwest", "europe-west2"}:
-        candidates.append(
-            ("UK Carbon Intensity API", "uk-grid:GB", uk_signal)
         )
 
     if not candidates:

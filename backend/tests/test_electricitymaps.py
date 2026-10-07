@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 
 from app.api.v1 import diagnostics
+from app.config.regions import REGION_MAP
 from app.api.v1.providers import live_home
 from app.config.grid_resolver import resolve_electricitymaps
 from app.services.electricitymaps_client import ElectricityMapsClient
@@ -12,6 +13,12 @@ from app.services.signal_resolver import resolve_signal
 
 
 class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
+    def test_electricity_maps_fallback_covers_the_cloud_region_inventory(self):
+        for provider, regions in REGION_MAP.items():
+            for region in regions:
+                with self.subTest(provider=provider, region=region):
+                    self.assertIsNotNone(resolve_electricitymaps(provider, region))
+
     def test_region_resolver_uses_provider_specific_maps_case_insensitively(self):
         self.assertEqual(
             resolve_electricitymaps("AWS", "US-WEST-1"),
@@ -110,8 +117,16 @@ class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
             "Electricity Maps API token is not configured",
         )
 
-    async def test_live_signal_tries_electricity_maps_before_fallback(self):
+    async def test_live_signal_uses_watttime_before_electricity_maps_fallback(self):
         timestamp = datetime.now(timezone.utc).isoformat()
+        watt_time = AsyncMock(
+            return_value={
+                "value": 101.0,
+                "source": "WattTime",
+                "updated_at": timestamp,
+                "status": "live",
+            }
+        )
         electricity_maps = AsyncMock(
             return_value={
                 "value": 88.0,
@@ -121,31 +136,32 @@ class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
             }
         )
 
-        with patch.object(
-            live_home._electricitymaps_client,
-            "get_signal_by_zone",
-            electricity_maps,
+        with (
+            patch.object(live_home, "watttime_signal", watt_time),
+            patch.object(
+                live_home._electricitymaps_client,
+                "get_signal_by_zone",
+                electricity_maps,
+            ),
         ):
             signal = await live_home._get_region_signal("aws", "us-west-1")
 
-        electricity_maps.assert_awaited_once_with("US-CAL-CISO")
-        self.assertEqual(signal["intensity"], 88.0)
-        self.assertEqual(signal["source"], "Electricity Maps")
-        self.assertEqual(signal["_sources_attempted"], ["Electricity Maps"])
-        self.assertEqual(signal["_grid_key"], "electricitymaps:US-CAL-CISO")
+        watt_time.assert_awaited_once_with("CAISO_NORTH")
+        electricity_maps.assert_not_awaited()
+        self.assertEqual(signal["intensity"], 101.0)
+        self.assertEqual(signal["source"], "WattTime")
+        self.assertEqual(signal["_sources_attempted"], ["WattTime"])
+        self.assertEqual(signal["_grid_key"], "watttime:CAISO_NORTH")
 
-    async def test_live_signal_falls_back_after_electricity_maps_error(self):
+    async def test_live_signal_falls_back_to_electricity_maps_after_primary_error(self):
         timestamp = datetime.now(timezone.utc).isoformat()
-        electricity_maps = AsyncMock(
-            side_effect=HTTPException(
-                status_code=502,
-                detail="Electricity Maps request failed",
-            )
-        )
         watt_time = AsyncMock(
+            side_effect=HTTPException(status_code=502, detail="WattTime failed")
+        )
+        electricity_maps = AsyncMock(
             return_value={
-                "value": 101.0,
-                "source": "WattTime",
+                "value": 88.0,
+                "source": "Electricity Maps",
                 "updated_at": timestamp,
                 "status": "live",
             }
@@ -161,18 +177,12 @@ class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
         ):
             signal = await live_home._get_region_signal("aws", "us-west-1")
 
-        self.assertEqual(signal["source"], "WattTime")
-        self.assertEqual(signal["_sources_attempted"], ["Electricity Maps", "WattTime"])
-        self.assertIn("Electricity Maps", signal["_source_errors"])
+        self.assertEqual(signal["source"], "Electricity Maps")
+        self.assertEqual(signal["_sources_attempted"], ["WattTime", "Electricity Maps"])
+        self.assertIn("WattTime", signal["_source_errors"])
 
-    async def test_live_signal_tries_entsoe_before_watttime_after_electricitymaps(self):
+    async def test_live_signal_tries_primary_providers_before_electricity_maps(self):
         timestamp = datetime.now(timezone.utc).isoformat()
-        electricity_maps = AsyncMock(
-            side_effect=HTTPException(
-                status_code=502,
-                detail="Electricity Maps request failed",
-            )
-        )
         entsoe = AsyncMock(
             return_value={
                 "value": 91.0,
@@ -181,7 +191,10 @@ class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
                 "status": "live",
             }
         )
-        watt_time = AsyncMock()
+        watt_time = AsyncMock(
+            side_effect=HTTPException(status_code=502, detail="WattTime failed")
+        )
+        electricity_maps = AsyncMock()
 
         with (
             patch.object(
@@ -208,9 +221,10 @@ class ElectricityMapsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(signal["source"], "ENTSO-E")
         self.assertEqual(
             signal["_sources_attempted"],
-            ["Electricity Maps", "ENTSO-E"],
+            ["WattTime", "ENTSO-E"],
         )
-        watt_time.assert_not_awaited()
+        watt_time.assert_awaited_once()
+        electricity_maps.assert_not_awaited()
 
     async def test_shared_resolver_falls_back_to_watttime_on_electricitymaps_error(self):
         electricity_maps = MagicMock()
