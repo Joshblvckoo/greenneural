@@ -68,6 +68,7 @@ def root():
 def debug_env():
     required_variables = (
         "ENTSOE_SECURITY_TOKEN",
+        "ELECTRICITYMAPS_API_TOKEN",
         "WATTTIME_USERNAME",
         "WATTTIME_PASSWORD",
     )

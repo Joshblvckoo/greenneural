@@ -1,20 +1,12 @@
-from datetime import datetime, timezone
-
 import httpx
 from fastapi import HTTPException
 
+from app.utils.freshness import freshness_status
+
 
 def _uk_status(updated_at: str | None) -> str:
-    if updated_at is None:
-        return "delayed"
-    try:
-        timestamp = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-    except ValueError:
-        return "delayed"
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
-    age_seconds = (datetime.now(timezone.utc) - timestamp).total_seconds()
-    return "live" if 0 <= age_seconds <= 1800 else "delayed"
+    status = freshness_status(updated_at)
+    return "delayed" if status == "unavailable" else status
 
 
 async def uk_signal() -> dict[str, str | float]:

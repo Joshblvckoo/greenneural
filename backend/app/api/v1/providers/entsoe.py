@@ -5,6 +5,7 @@ import httpx
 from fastapi import HTTPException
 
 from app.config.settings import settings
+from app.utils.freshness import freshness_status
 
 
 ENTSOE_API_URL = "https://transparency.entsoe.eu/api"
@@ -192,8 +193,7 @@ async def entsoe_live_signal(zone: str) -> dict[str, object]:
     }
     if latest_timestamp.tzinfo is None:
         latest_timestamp = latest_timestamp.replace(tzinfo=timezone.utc)
-    age_seconds = (datetime.now(timezone.utc) - latest_timestamp).total_seconds()
-    status = "live" if 0 <= age_seconds <= 1800 else "delayed"
+    status = freshness_status(latest_timestamp)
     return {
         "value": intensity,
         "source": "ENTSO-E",

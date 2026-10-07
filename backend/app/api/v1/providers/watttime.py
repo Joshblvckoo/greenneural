@@ -1,11 +1,12 @@
 import asyncio
-from datetime import datetime, timezone
+
 import time
 
 import httpx
 from fastapi import HTTPException
 
 from app.config.settings import settings
+from app.utils.freshness import freshness_status
 
 
 _TOKEN_CACHE_TTL_SECONDS = 25 * 60
@@ -91,16 +92,10 @@ async def watttime_signal(region: str) -> dict[str, str | float | None]:
             detail="WattTime MOER response contained an invalid reading",
         ) from error
 
-    status = "delayed"
-    if isinstance(updated_at, str):
-        try:
-            timestamp = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-            if timestamp.tzinfo is None:
-                timestamp = timestamp.replace(tzinfo=timezone.utc)
-            age_seconds = (datetime.now(timezone.utc) - timestamp).total_seconds()
-            status = "live" if 0 <= age_seconds <= 1800 else "delayed"
-        except ValueError:
-            updated_at = None
+    status = freshness_status(updated_at)
+    if status == "unavailable":
+        updated_at = None
+        status = "delayed"
 
     return {
         "value": value,

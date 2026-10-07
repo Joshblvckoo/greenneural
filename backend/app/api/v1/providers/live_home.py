@@ -7,12 +7,18 @@ from typing import Any, Awaitable, Callable
 import httpx
 from fastapi import HTTPException
 
-from app.config.grid_resolver import resolve_entsoe, resolve_watttime
+from app.config.grid_resolver import (
+    resolve_electricitymaps,
+    resolve_entsoe,
+    resolve_watttime,
+)
 from app.config.regions import REGION_MAP
 from app.config.settings import settings
 from app.api.v1.providers.entsoe import ENTSOE_ZONE_CODES, entsoe_live_signal
+from app.services.electricitymaps_client import ElectricityMapsClient
 from app.api.v1.providers.uk_grid import uk_generation_mix, uk_signal
 from app.api.v1.providers.watttime import watttime_signal
+from app.utils.freshness import freshness_status
 
 REGIONS = REGION_MAP
 
@@ -23,6 +29,7 @@ _cache: dict[str, Any] | None = None
 _cache_expires_at = 0.0
 _cache_lock = asyncio.Lock()
 _history: dict[str, list[tuple[datetime, float]]] = {}
+_electricitymaps_client = ElectricityMapsClient()
 
 
 def _parse_timestamp(value: object) -> datetime | None:
@@ -77,18 +84,9 @@ def compute_status(
 ) -> str:
     if fallback:
         return "fallback"
-    timestamp = _parse_timestamp(updated_at)
-    if timestamp is None:
-        return "unavailable"
-    current_time = now or datetime.now(timezone.utc)
-    age_seconds = (current_time - timestamp).total_seconds()
-    if forecast or age_seconds < 0:
+    if forecast:
         return "forecast"
-    if age_seconds < 60:
-        return "live"
-    if age_seconds < 300:
-        return "delayed"
-    return "stale"
+    return freshness_status(updated_at, now=now)
 
 
 def _combined_status(signals: list[dict[str, Any]]) -> str:
@@ -162,11 +160,7 @@ def build_provider_health(
             "latency_ms": best.get("latency_ms"),
         },
         "updated_at": min(updated_times).isoformat() if updated_times else None,
-        "status": (
-            "stale"
-            if any(signal["status"] != "live" for signal in available)
-            else "live"
-        ),
+        "status": _combined_status(available),
         "sources": sorted({
             signal["source"]
             for signal in available
@@ -308,6 +302,14 @@ async def _get_region_signal(
         tuple[str, str, Callable[[], Awaitable[dict[str, Any] | None]]]
     ] = []
 
+    if (em_zone := resolve_electricitymaps(provider_key, region_key)) is not None:
+        candidates.append(
+            (
+                "Electricity Maps",
+                f"electricitymaps:{em_zone}",
+                lambda: _electricitymaps_client.get_signal_by_zone(em_zone),
+            )
+        )
     if (ba := resolve_watttime(provider_key, region_key)) is not None:
         candidates.append(
             ("WattTime", f"watttime:{ba}", lambda: watttime_signal(ba))
@@ -500,6 +502,12 @@ async def _build_live_home() -> dict[str, Any]:
             name for name, value in (
                 ("WATTTIME_USERNAME", settings.WATTTIME_USERNAME),
                 ("WATTTIME_PASSWORD", settings.WATTTIME_PASSWORD),
+            )
+            if not value
+        ],
+        "Electricity Maps": [
+            name for name, value in (
+                ("ELECTRICITYMAPS_API_TOKEN", settings.ELECTRICITYMAPS_API_TOKEN),
             )
             if not value
         ],

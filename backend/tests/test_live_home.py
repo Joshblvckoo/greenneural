@@ -80,7 +80,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(health["average_intensity"], 100)
         self.assertEqual(health["trend"], "down")
         self.assertEqual(health["delta_10m"], -8.0)
-        self.assertEqual(health["status"], "stale")
+        self.assertEqual(health["status"], "delayed")
         self.assertEqual(health["regions_available"], 2)
         self.assertEqual(health["regions_checked"], 3)
         self.assertEqual(health["cleanest_region"]["region"], "eu-west-2")
@@ -238,7 +238,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(get_wattime_ba("aws", "us-east4"))
         self.assertIsNone(get_wattime_ba("unknown", "us-east-1"))
 
-    def test_signal_status_uses_freshness_and_forecast_thresholds(self):
+    def test_signal_status_uses_relaxed_freshness_and_forecast_thresholds(self):
         now = datetime(2026, 10, 6, 8, 0, tzinfo=timezone.utc)
         self.assertEqual(
             live_home.compute_status(now.isoformat(), now=now),
@@ -246,14 +246,28 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(
             live_home.compute_status(
-                (now - timedelta(seconds=60)).isoformat(),
+                (now - timedelta(hours=1)).isoformat(),
+                now=now,
+            ),
+            "live",
+        )
+        self.assertEqual(
+            live_home.compute_status(
+                (now - timedelta(hours=1, seconds=1)).isoformat(),
                 now=now,
             ),
             "delayed",
         )
         self.assertEqual(
             live_home.compute_status(
-                (now - timedelta(seconds=300)).isoformat(),
+                (now - timedelta(hours=3)).isoformat(),
+                now=now,
+            ),
+            "delayed",
+        )
+        self.assertEqual(
+            live_home.compute_status(
+                (now - timedelta(hours=3, seconds=1)).isoformat(),
                 now=now,
             ),
             "stale",
@@ -455,6 +469,7 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
             "os.environ",
             {
                 "ENTSOE_SECURITY_TOKEN": "test-entsoe-secret",
+                "ELECTRICITYMAPS_API_TOKEN": "test-electricitymaps-secret",
                 "WATTTIME_USERNAME": "test-user",
                 "WATTTIME_PASSWORD": "test-watttime-secret",
             },
@@ -466,12 +481,14 @@ class LiveHomeTests(unittest.IsolatedAsyncioTestCase):
             {
                 "configured": {
                     "ENTSOE_SECURITY_TOKEN": True,
+                    "ELECTRICITYMAPS_API_TOKEN": True,
                     "WATTTIME_USERNAME": True,
                     "WATTTIME_PASSWORD": True,
                 }
             },
         )
         self.assertNotIn("test-entsoe-secret", str(result))
+        self.assertNotIn("test-electricitymaps-secret", str(result))
         self.assertNotIn("test-watttime-secret", str(result))
 
     async def test_live_response_includes_provenance_status_and_mix(self):

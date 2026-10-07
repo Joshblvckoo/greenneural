@@ -3,7 +3,11 @@ from typing import Any
 from fastapi import APIRouter
 
 from app.api.v1.providers.live_home import compute_live_home
-from app.config.grid_resolver import resolve_entsoe, resolve_watttime
+from app.config.grid_resolver import (
+    resolve_electricitymaps,
+    resolve_entsoe,
+    resolve_watttime,
+)
 from app.config.regions import REGION_MAP
 from app.services.live_signal_scheduler import scheduler_status
 
@@ -17,6 +21,8 @@ _UK_REGIONS = {
 
 def _eligible_sources(provider: str, region: str) -> list[str]:
     sources = []
+    if resolve_electricitymaps(provider, region) is not None:
+        sources.append("Electricity Maps")
     if resolve_watttime(provider, region) is not None:
         sources.append("WattTime")
     if resolve_entsoe(provider, region) is not None:
